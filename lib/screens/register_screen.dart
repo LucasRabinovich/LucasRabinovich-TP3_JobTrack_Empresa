@@ -10,16 +10,19 @@ class RegisterScreen extends StatefulWidget {
 
 class _RegisterScreenState extends State<RegisterScreen> {
   final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _industryController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final AuthService _authService = AuthService();
 
   bool _isLoading = false;
   bool _obscurePassword = true;
+  bool _isCandidate = true;
 
   @override
   void dispose() {
     _nameController.dispose();
+    _industryController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
@@ -33,12 +36,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (_isLoading) return;
 
     final name = _nameController.text.trim();
+    final industry = _industryController.text.trim();
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
 
     if (name.isEmpty || email.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Por favor completa todos los campos')),
+      );
+      return;
+    }
+
+    if (!_isCandidate && industry.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Por favor ingresa la industria o sector')),
       );
       return;
     }
@@ -62,7 +73,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
     });
 
     try {
-      await _authService.registerWithEmailAndPassword(email, password);
+      await _authService.registerUser(
+        email: email,
+        password: password,
+        name: name,
+        role: _isCandidate ? 'candidato' : 'empresa',
+        industry: !_isCandidate ? industry : null,
+      );
+      
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Cuenta creada con éxito. Ya puedes iniciar sesión.')),
@@ -100,7 +118,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
+          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 10.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -113,7 +131,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   color: Colors.black,
                 ),
               ),
-              const SizedBox(height: 48),
+              const SizedBox(height: 32),
               const Text(
                 'REGISTRO',
                 style: TextStyle(
@@ -125,16 +143,90 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Crea una cuenta para empezar tu búsqueda.',
+                'Selecciona tu tipo de cuenta para empezar.',
                 style: TextStyle(
                   fontSize: 14,
                   color: Colors.grey[700],
                 ),
               ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => setState(() => _isCandidate = true),
+                      child: Container(
+                        height: 80,
+                        decoration: BoxDecoration(
+                          color: _isCandidate ? const Color(0xFFD4FF00) : Colors.white,
+                          border: Border.all(color: Colors.black, width: 2.0),
+                          boxShadow: _isCandidate
+                              ? const [BoxShadow(color: Colors.black, offset: Offset(4, 4), blurRadius: 0)]
+                              : null,
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.person_outline,
+                              color: _isCandidate ? Colors.black : Colors.grey[600],
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'CANDIDATO',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 1.0,
+                                color: _isCandidate ? Colors.black : Colors.grey[600],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => setState(() => _isCandidate = false),
+                      child: Container(
+                        height: 80,
+                        decoration: BoxDecoration(
+                          color: !_isCandidate ? Colors.black : Colors.white,
+                          border: Border.all(color: Colors.black, width: 2.0),
+                          boxShadow: !_isCandidate
+                              ? const [BoxShadow(color: Colors.black, offset: Offset(4, 4), blurRadius: 0)]
+                              : null,
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.domain,
+                              color: !_isCandidate ? Colors.white : Colors.grey[600],
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'EMPRESA',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 1.0,
+                                color: !_isCandidate ? Colors.white : Colors.grey[600],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
               const SizedBox(height: 32),
-              const Text(
-                'NOMBRE COMPLETO',
-                style: TextStyle(
+              Text(
+                _isCandidate ? 'NOMBRE COMPLETO' : 'NOMBRE DE LA EMPRESA',
+                style: const TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.bold,
                   letterSpacing: 1.0,
@@ -145,20 +237,46 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 controller: _nameController,
                 keyboardType: TextInputType.name,
                 style: const TextStyle(fontFamily: 'monospace'),
-                decoration: const InputDecoration(
-                  hintText: 'Ej. Juan Pérez',
-                  hintStyle: TextStyle(color: Colors.grey),
+                decoration: InputDecoration(
+                  hintText: _isCandidate ? 'Ej. Juan Pérez' : 'Ej. TechCorp Inc.',
+                  hintStyle: const TextStyle(color: Colors.grey),
                   filled: true,
                   fillColor: Colors.white,
                   enabledBorder: brutalistBorder,
                   focusedBorder: brutalistBorder,
-                  contentPadding: EdgeInsets.all(16),
+                  contentPadding: const EdgeInsets.all(16),
                 ),
               ),
               const SizedBox(height: 24),
-              const Text(
-                'EMAIL',
-                style: TextStyle(
+              if (!_isCandidate) ...[
+                const Text(
+                  'INDUSTRIA / SECTOR',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.0,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _industryController,
+                  keyboardType: TextInputType.text,
+                  style: const TextStyle(fontFamily: 'monospace'),
+                  decoration: const InputDecoration(
+                    hintText: 'Ej. Desarrollo de Software',
+                    hintStyle: TextStyle(color: Colors.grey),
+                    filled: true,
+                    fillColor: Colors.white,
+                    enabledBorder: brutalistBorder,
+                    focusedBorder: brutalistBorder,
+                    contentPadding: EdgeInsets.all(16),
+                  ),
+                ),
+                const SizedBox(height: 24),
+              ],
+              Text(
+                _isCandidate ? 'EMAIL' : 'EMAIL CORPORATIVO',
+                style: const TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.bold,
                   letterSpacing: 1.0,
@@ -169,14 +287,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 controller: _emailController,
                 keyboardType: TextInputType.emailAddress,
                 style: const TextStyle(fontFamily: 'monospace'),
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   hintText: 'correo@ejemplo.com',
-                  hintStyle: TextStyle(color: Colors.grey),
+                  hintStyle: const TextStyle(color: Colors.grey),
                   filled: true,
                   fillColor: Colors.white,
                   enabledBorder: brutalistBorder,
                   focusedBorder: brutalistBorder,
-                  contentPadding: EdgeInsets.all(16),
+                  contentPadding: const EdgeInsets.all(16),
                 ),
               ),
               const SizedBox(height: 24),
@@ -226,7 +344,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 child: Container(
                   height: 56,
                   decoration: BoxDecoration(
-                    color: _isLoading ? Colors.grey[800] : Colors.black,
+                    color: _isLoading 
+                        ? (_isCandidate ? const Color(0xFFAACC00) : Colors.grey[800]) 
+                        : (_isCandidate ? const Color(0xFFD4FF00) : Colors.black),
                     border: Border.all(color: Colors.black, width: 2.0),
                     boxShadow: const [
                       BoxShadow(
@@ -238,21 +358,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                   child: Center(
                     child: _isLoading
-                        ? const SizedBox(
+                        ? SizedBox(
                             height: 24,
                             width: 24,
                             child: CircularProgressIndicator(
-                              color: Colors.white,
+                              color: _isCandidate ? Colors.black : Colors.white,
                               strokeWidth: 3.0,
                             ),
                           )
-                        : const Text(
-                            'CREAR CUENTA',
+                        : Text(
+                            _isCandidate ? 'CREAR CUENTA DE CANDIDATO' : 'CREAR CUENTA DE EMPRESA',
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w900,
                               letterSpacing: 1.0,
-                              color: Colors.white,
+                              color: _isCandidate ? Colors.black : Colors.white,
                             ),
                           ),
                   ),

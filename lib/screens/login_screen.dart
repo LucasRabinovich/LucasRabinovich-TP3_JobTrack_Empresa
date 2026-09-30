@@ -18,6 +18,7 @@ class _LoginScreenState extends State<LoginScreen> {
   
   bool _isLoading = false;
   bool _obscurePassword = true;
+  bool _isCandidate = true;
 
   @override
   void dispose() {
@@ -126,10 +127,95 @@ class _LoginScreenState extends State<LoginScreen> {
                   color: Colors.grey[700],
                 ),
               ),
-              const SizedBox(height: 32),
-              const Text(
-                'EMAIL',
-                style: TextStyle(
+              const SizedBox(height: 24),
+              Container(
+                height: 56,
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.black, width: 2.0),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => setState(() => _isCandidate = true),
+                        child: Container(
+                          color: _isCandidate ? const Color(0xFFD4FF00) : const Color(0xFFF4F4F4),
+                          child: Stack(
+                            children: [
+                              if (_isCandidate)
+                                Positioned(
+                                  right: 0,
+                                  top: 0,
+                                  bottom: 0,
+                                  child: Container(width: 2, color: Colors.black),
+                                ),
+                              if (_isCandidate)
+                                Positioned(
+                                  left: 0,
+                                  right: 0,
+                                  bottom: 0,
+                                  child: Container(height: 4, color: Colors.black),
+                                ),
+                              Center(
+                                child: Text(
+                                  'CANDIDATO',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 1.0,
+                                    color: _isCandidate ? Colors.black : Colors.grey[600],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => setState(() => _isCandidate = false),
+                        child: Container(
+                          color: !_isCandidate ? Colors.black : const Color(0xFFF4F4F4),
+                          child: Stack(
+                            children: [
+                              if (!_isCandidate)
+                                Positioned(
+                                  left: 0,
+                                  top: 0,
+                                  bottom: 0,
+                                  child: Container(width: 2, color: Colors.black),
+                                ),
+                              if (!_isCandidate)
+                                Positioned(
+                                  left: 0,
+                                  right: 0,
+                                  bottom: 0,
+                                  child: Container(height: 4, color: Colors.black),
+                                ),
+                              Center(
+                                child: Text(
+                                  'EMPRESA',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 1.0,
+                                    color: !_isCandidate ? Colors.white : Colors.grey[600],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                _isCandidate ? 'EMAIL' : 'EMAIL CORPORATIVO',
+                style: const TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.bold,
                   letterSpacing: 1.0,
@@ -219,7 +305,9 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: Container(
                   height: 56,
                   decoration: BoxDecoration(
-                    color: _isLoading ? const Color(0xFFAACC00) : const Color(0xFFD4FF00),
+                    color: _isLoading 
+                        ? (_isCandidate ? const Color(0xFFAACC00) : Colors.grey[800]) 
+                        : (_isCandidate ? const Color(0xFFD4FF00) : Colors.black),
                     border: Border.all(color: Colors.black, width: 2.0),
                     boxShadow: const [
                       BoxShadow(
@@ -231,21 +319,21 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   child: Center(
                     child: _isLoading
-                        ? const SizedBox(
+                        ? SizedBox(
                             height: 24,
                             width: 24,
                             child: CircularProgressIndicator(
-                              color: Colors.black,
+                              color: _isCandidate ? Colors.black : Colors.white,
                               strokeWidth: 3.0,
                             ),
                           )
-                        : const Text(
-                            'INICIAR SESIÓN',
+                        : Text(
+                            _isCandidate ? 'ENTRAR COMO CANDIDATO' : 'ENTRAR COMO EMPRESA',
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w900,
                               letterSpacing: 1.0,
-                              color: Colors.black,
+                              color: _isCandidate ? Colors.black : Colors.white,
                             ),
                           ),
                   ),
