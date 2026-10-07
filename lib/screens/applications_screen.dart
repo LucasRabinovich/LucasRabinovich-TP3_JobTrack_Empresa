@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:job_track/screens/new_application_screen.dart';
+import 'package:job_track/screens/application_detail_screen.dart';
 
 class ApplicationsScreen extends StatefulWidget {
   const ApplicationsScreen({super.key});
@@ -70,7 +71,9 @@ class _ApplicationsScreenState extends State<ApplicationsScreen> {
                 letterSpacing: 1,
               ),
             ),
+
             const SizedBox(height: 8),
+
             Text(
               'Consulta y organiza tus procesos laborales.',
               style: TextStyle(
@@ -78,6 +81,7 @@ class _ApplicationsScreenState extends State<ApplicationsScreen> {
                 color: Colors.grey[700],
               ),
             ),
+
             const SizedBox(height: 24),
 
             GestureDetector(
@@ -152,6 +156,7 @@ class _ApplicationsScreenState extends State<ApplicationsScreen> {
                 _buildFilterButton('TODOS'),
                 _buildFilterButton('POSTULADO'),
                 _buildFilterButton('EN PROCESO'),
+                _buildFilterButton('ENTREVISTA'),
                 _buildFilterButton('OFERTA'),
                 _buildFilterButton('RECHAZADO'),
               ],
@@ -200,10 +205,9 @@ class _ApplicationsScreenState extends State<ApplicationsScreen> {
 
                         final docs = snapshot.data?.docs ?? [];
 
-                        final search =
-                            _searchController.text
-                                .trim()
-                                .toLowerCase();
+                        final search = _searchController.text
+                            .trim()
+                            .toLowerCase();
 
                         final filteredDocs = docs.where((doc) {
                           final data =
@@ -249,11 +253,15 @@ class _ApplicationsScreenState extends State<ApplicationsScreen> {
                         return ListView.builder(
                           itemCount: filteredDocs.length,
                           itemBuilder: (context, index) {
-                            final data =
-                                filteredDocs[index].data()
-                                    as Map<String, dynamic>;
+                            final document =
+                                filteredDocs[index];
+
+                            final data = document.data()
+                                as Map<String, dynamic>;
 
                             return _buildApplicationCard(
+                              applicationId: document.id,
+                              applicationData: data,
                               company:
                                   data['company']?.toString() ??
                                   'Sin empresa',
@@ -314,92 +322,119 @@ class _ApplicationsScreenState extends State<ApplicationsScreen> {
   }
 
   Widget _buildApplicationCard({
+    required String applicationId,
+    required Map<String, dynamic> applicationData,
     required String company,
     required String role,
     required String status,
     required String modality,
     required String salary,
   }) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border.all(
-          color: Colors.black,
-          width: 2,
-        ),
-        boxShadow: const [
-          BoxShadow(
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) =>
+                ApplicationDetailScreen(
+              applicationId: applicationId,
+              applicationData: applicationData,
+            ),
+          ),
+        );
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border.all(
             color: Colors.black,
-            offset: Offset(4, 4),
-            blurRadius: 0,
+            width: 2,
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            company,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 6),
-
-          Text(
-            role,
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[700],
-            ),
-          ),
-
-          if (modality.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            Text(
-              'Modalidad: $modality',
-              style: const TextStyle(
-                fontSize: 13,
-              ),
+          boxShadow: const [
+            BoxShadow(
+              color: Colors.black,
+              offset: Offset(4, 4),
+              blurRadius: 0,
             ),
           ],
-
-          if (salary.isNotEmpty) ...[
-            const SizedBox(height: 4),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
             Text(
-              'Salario: $salary',
+              company,
               style: const TextStyle(
-                fontSize: 13,
-              ),
-            ),
-          ],
-
-          const SizedBox(height: 16),
-
-          Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 10,
-              vertical: 6,
-            ),
-            decoration: BoxDecoration(
-              color: const Color(0xFFD4FF00),
-              border: Border.all(
-                color: Colors.black,
-                width: 2,
-              ),
-            ),
-            child: Text(
-              status,
-              style: const TextStyle(
-                fontSize: 11,
+                fontSize: 18,
                 fontWeight: FontWeight.w900,
               ),
             ),
-          ),
-        ],
+
+            const SizedBox(height: 6),
+
+            Text(
+              role,
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey[700],
+              ),
+            ),
+
+            if (modality.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Text(
+                'Modalidad: $modality',
+                style: const TextStyle(
+                  fontSize: 13,
+                ),
+              ),
+            ],
+
+            if (salary.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text(
+                'Salario: $salary',
+                style: const TextStyle(
+                  fontSize: 13,
+                ),
+              ),
+            ],
+
+            const SizedBox(height: 16),
+
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFD4FF00),
+                    border: Border.all(
+                      color: Colors.black,
+                      width: 2,
+                    ),
+                  ),
+                  child: Text(
+                    status,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+
+                const Icon(
+                  Icons.arrow_forward,
+                  color: Colors.black,
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
