@@ -17,7 +17,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   bool _isLoading = false;
   bool _obscurePassword = true;
-  bool _isCandidate = true;
 
   @override
   void dispose() {
@@ -40,16 +39,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
 
-    if (name.isEmpty || email.isEmpty || password.isEmpty) {
+    if (name.isEmpty || industry.isEmpty || email.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Por favor completa todos los campos')),
-      );
-      return;
-    }
-
-    if (!_isCandidate && industry.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Por favor ingresa la industria o sector')),
       );
       return;
     }
@@ -77,13 +69,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
         email: email,
         password: password,
         name: name,
-        role: _isCandidate ? 'candidato' : 'empresa',
-        industry: !_isCandidate ? industry : null,
+        role: 'empresa', // Rol hardcodeado para la app de empresas
+        industry: industry,
       );
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Cuenta creada con éxito. Ya puedes iniciar sesión.')),
+          const SnackBar(content: Text('Cuenta corporativa creada con éxito. Ya puedes iniciar sesión.')),
         );
         Navigator.pop(context);
       }
@@ -133,7 +125,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
               const SizedBox(height: 32),
               const Text(
-                'REGISTRO',
+                'REGISTRO EMPRESA',
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
@@ -143,90 +135,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Selecciona tu tipo de cuenta para empezar.',
+                'Completa los datos de tu organización.',
                 style: TextStyle(
                   fontSize: 14,
                   color: Colors.grey[700],
                 ),
               ),
-              const SizedBox(height: 24),
-              Row(
-                children: [
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () => setState(() => _isCandidate = true),
-                      child: Container(
-                        height: 80,
-                        decoration: BoxDecoration(
-                          color: _isCandidate ? const Color(0xFFD4FF00) : Colors.white,
-                          border: Border.all(color: Colors.black, width: 2.0),
-                          boxShadow: _isCandidate
-                              ? const [BoxShadow(color: Colors.black, offset: Offset(4, 4), blurRadius: 0)]
-                              : null,
-                        ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.person_outline,
-                              color: _isCandidate ? Colors.black : Colors.grey[600],
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'CANDIDATO',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 1.0,
-                                color: _isCandidate ? Colors.black : Colors.grey[600],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () => setState(() => _isCandidate = false),
-                      child: Container(
-                        height: 80,
-                        decoration: BoxDecoration(
-                          color: !_isCandidate ? Colors.black : Colors.white,
-                          border: Border.all(color: Colors.black, width: 2.0),
-                          boxShadow: !_isCandidate
-                              ? const [BoxShadow(color: Colors.black, offset: Offset(4, 4), blurRadius: 0)]
-                              : null,
-                        ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.domain,
-                              color: !_isCandidate ? Colors.white : Colors.grey[600],
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'EMPRESA',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 1.0,
-                                color: !_isCandidate ? Colors.white : Colors.grey[600],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
               const SizedBox(height: 32),
-              Text(
-                _isCandidate ? 'NOMBRE COMPLETO' : 'NOMBRE DE LA EMPRESA',
-                style: const TextStyle(
+              const Text(
+                'NOMBRE DE LA EMPRESA',
+                style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.bold,
                   letterSpacing: 1.0,
@@ -237,46 +155,44 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 controller: _nameController,
                 keyboardType: TextInputType.name,
                 style: const TextStyle(fontFamily: 'monospace'),
-                decoration: InputDecoration(
-                  hintText: _isCandidate ? 'Ej. Juan Pérez' : 'Ej. TechCorp Inc.',
-                  hintStyle: const TextStyle(color: Colors.grey),
+                decoration: const InputDecoration(
+                  hintText: 'Ej. TechCorp Inc.',
+                  hintStyle: TextStyle(color: Colors.grey),
                   filled: true,
                   fillColor: Colors.white,
                   enabledBorder: brutalistBorder,
                   focusedBorder: brutalistBorder,
-                  contentPadding: const EdgeInsets.all(16),
+                  contentPadding: EdgeInsets.all(16),
                 ),
               ),
               const SizedBox(height: 24),
-              if (!_isCandidate) ...[
-                const Text(
-                  'INDUSTRIA / SECTOR',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 1.0,
-                  ),
+              const Text(
+                'INDUSTRIA / SECTOR',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1.0,
                 ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: _industryController,
-                  keyboardType: TextInputType.text,
-                  style: const TextStyle(fontFamily: 'monospace'),
-                  decoration: const InputDecoration(
-                    hintText: 'Ej. Desarrollo de Software',
-                    hintStyle: TextStyle(color: Colors.grey),
-                    filled: true,
-                    fillColor: Colors.white,
-                    enabledBorder: brutalistBorder,
-                    focusedBorder: brutalistBorder,
-                    contentPadding: EdgeInsets.all(16),
-                  ),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _industryController,
+                keyboardType: TextInputType.text,
+                style: const TextStyle(fontFamily: 'monospace'),
+                decoration: const InputDecoration(
+                  hintText: 'Ej. Desarrollo de Software',
+                  hintStyle: TextStyle(color: Colors.grey),
+                  filled: true,
+                  fillColor: Colors.white,
+                  enabledBorder: brutalistBorder,
+                  focusedBorder: brutalistBorder,
+                  contentPadding: EdgeInsets.all(16),
                 ),
-                const SizedBox(height: 24),
-              ],
-              Text(
-                _isCandidate ? 'EMAIL' : 'EMAIL CORPORATIVO',
-                style: const TextStyle(
+              ),
+              const SizedBox(height: 24),
+              const Text(
+                'EMAIL CORPORATIVO',
+                style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.bold,
                   letterSpacing: 1.0,
@@ -287,14 +203,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 controller: _emailController,
                 keyboardType: TextInputType.emailAddress,
                 style: const TextStyle(fontFamily: 'monospace'),
-                decoration: InputDecoration(
+                decoration: const InputDecoration(
                   hintText: 'correo@ejemplo.com',
-                  hintStyle: const TextStyle(color: Colors.grey),
+                  hintStyle: TextStyle(color: Colors.grey),
                   filled: true,
                   fillColor: Colors.white,
                   enabledBorder: brutalistBorder,
                   focusedBorder: brutalistBorder,
-                  contentPadding: const EdgeInsets.all(16),
+                  contentPadding: EdgeInsets.all(16),
                 ),
               ),
               const SizedBox(height: 24),
@@ -344,9 +260,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 child: Container(
                   height: 56,
                   decoration: BoxDecoration(
-                    color: _isLoading 
-                        ? (_isCandidate ? const Color(0xFFAACC00) : Colors.grey[800]) 
-                        : (_isCandidate ? const Color(0xFFD4FF00) : Colors.black),
+                    color: _isLoading ? Colors.grey[800] : Colors.black,
                     border: Border.all(color: Colors.black, width: 2.0),
                     boxShadow: const [
                       BoxShadow(
@@ -358,21 +272,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                   child: Center(
                     child: _isLoading
-                        ? SizedBox(
+                        ? const SizedBox(
                             height: 24,
                             width: 24,
                             child: CircularProgressIndicator(
-                              color: _isCandidate ? Colors.black : Colors.white,
+                              color: Colors.white,
                               strokeWidth: 3.0,
                             ),
                           )
-                        : Text(
-                            _isCandidate ? 'CREAR CUENTA DE CANDIDATO' : 'CREAR CUENTA DE EMPRESA',
+                        : const Text(
+                            'CREAR CUENTA',
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w900,
                               letterSpacing: 1.0,
-                              color: _isCandidate ? Colors.black : Colors.white,
+                              color: Colors.white,
                             ),
                           ),
                   ),
@@ -388,7 +302,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     text: const TextSpan(
                       style: TextStyle(color: Colors.black, fontSize: 14),
                       children: [
-                        TextSpan(text: '¿Ya tienes cuenta? '),
+                        TextSpan(text: '¿Ya tienes cuenta corporativa? '),
                         TextSpan(
                           text: 'Ingresa aquí',
                           style: TextStyle(

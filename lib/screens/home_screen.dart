@@ -3,7 +3,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:job_track/screens/login_screen.dart';
 import 'package:job_track/screens/my_company_screen.dart';
-import 'package:job_track/screens/applications_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -50,8 +49,7 @@ class HomeScreen extends StatelessWidget {
           }
 
           final userData = snapshot.data!.data() as Map<String, dynamic>;
-          final String role = userData['role'] ?? 'candidato';
-          final String name = userData['name'] ?? 'Usuario';
+          final String name = userData['name'] ?? 'Empresa';
 
           return Padding(
             padding: const EdgeInsets.symmetric(horizontal: 32),
@@ -71,59 +69,53 @@ class HomeScreen extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   decoration: BoxDecoration(
-                    color: role == 'empresa' ? Colors.black : const Color(0xFFD4FF00),
+                    color: Colors.black,
                     border: Border.all(color: Colors.black, width: 2),
                   ),
-                  child: Text(
-                    role == 'empresa' ? 'PERFIL: EMPRESA' : 'PERFIL: CANDIDATO',
+                  child: const Text(
+                    'PERFIL: EMPRESA',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
-                      color: role == 'empresa' ? Colors.white : Colors.black,
+                      color: Colors.white,
                     ),
                   ),
                 ),
                 const SizedBox(height: 40),
-                if (role == 'candidato')
-                  GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const ApplicationsScreen(),
-                        ),
-                      );
-                    },
-                    child: Container(
-                      height: 56,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFD4FF00),
-                        border: Border.all(
-                          color: Colors.black,
-                          width: 2,
-                        ),
-                        boxShadow: const [
-                          BoxShadow(
-                            color: Colors.black,
-                            offset: Offset(4, 4),
-                            blurRadius: 0,
-                          ),
-                        ],
+                GestureDetector(
+                  onTap: () {
+                    // TODO: Conectar con la pantalla de Crear Oferta
+                  },
+                  child: Container(
+                    height: 56,
+                    decoration: BoxDecoration(
+                      color: Colors.black,
+                      border: Border.all(
+                        color: Colors.black,
+                        width: 2,
                       ),
-                      child: const Center(
-                        child: Text(
-                          'VER POSTULACIONES',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 1,
-                            color: Colors.black,
-                          ),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Colors.black,
+                          offset: Offset(4, 4),
+                          blurRadius: 0,
+                        ),
+                      ],
+                    ),
+                    child: const Center(
+                      child: Text(
+                        'PUBLICAR OFERTA',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 1,
+                          color: Colors.white,
                         ),
                       ),
                     ),
                   ),
-                if (role == 'candidato') const SizedBox(height: 24),
+                ),
+                const SizedBox(height: 24),
                 ElevatedButton(
                   onPressed: () async {
                     await FirebaseAuth.instance.signOut();
@@ -137,20 +129,23 @@ class HomeScreen extends StatelessWidget {
                     }
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.black,
+                    backgroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(
                       horizontal: 32,
                       vertical: 16,
                     ),
                     shape: const RoundedRectangleBorder(
                       borderRadius: BorderRadius.zero,
+                      side: BorderSide(color: Colors.black, width: 2),
                     ),
+                    elevation: 0,
                   ),
                   child: const Text(
                     'CERRAR SESIÓN',
                     style: TextStyle(
-                      color: Colors.white,
+                      color: Colors.black,
                       fontWeight: FontWeight.bold,
+                      letterSpacing: 1,
                     ),
                   ),
                 ),
@@ -158,6 +153,26 @@ class HomeScreen extends StatelessWidget {
             ),
           );
         },
+      ),
+      bottomNavigationBar: Container(
+        decoration: const BoxDecoration(
+          border: Border(top: BorderSide(color: Colors.black, width: 2.0)),
+        ),
+        child: BottomNavigationBar(
+          backgroundColor: const Color(0xFFF4F4F4),
+          type: BottomNavigationBarType.fixed,
+          selectedItemColor: Colors.black,
+          unselectedItemColor: Colors.grey[600],
+          selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 10, fontFamily: 'monospace'),
+          unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 10, fontFamily: 'monospace'),
+          elevation: 0,
+          items: const [
+            BottomNavigationBarItem(icon: Icon(Icons.grid_view), label: 'INICIO'),
+            BottomNavigationBarItem(icon: Icon(Icons.format_list_bulleted), label: 'MIS AVISOS'),
+            BottomNavigationBarItem(icon: Icon(Icons.people_alt_outlined), label: 'CANDIDATOS'),
+            BottomNavigationBarItem(icon: Icon(Icons.domain), label: 'PERFIL'),
+          ],
+        ),
       ),
     );
   }
@@ -195,11 +210,11 @@ class HomeScreen extends StatelessWidget {
               child: ListView(
                 padding: const EdgeInsets.all(16.0),
                 children: [
-                  _buildDrawerItem(Icons.domain, 'DIRECTORIO EMPRESAS', () {}),
+                  _buildDrawerItem(Icons.grid_view, 'PANEL PRINCIPAL', () => Navigator.pop(context)),
                   const SizedBox(height: 12),
-                  _buildDrawerItem(Icons.description_outlined, 'MIS DOCUMENTOS', () {}),
+                  _buildDrawerItem(Icons.format_list_bulleted, 'MIS AVISOS', () {}),
                   const SizedBox(height: 12),
-                  _buildDrawerItem(Icons.bar_chart, 'ESTADÍSTICAS', () {}),
+                  _buildDrawerItem(Icons.people_alt_outlined, 'CANDIDATOS', () {}),
                   const SizedBox(height: 24),
                   Container(height: 2, color: Colors.black),
                   const SizedBox(height: 24),
@@ -210,8 +225,6 @@ class HomeScreen extends StatelessWidget {
                       MaterialPageRoute(builder: (context) => const MyCompanyScreen()),
                     );
                   }),
-                  const SizedBox(height: 12),
-                  _buildDrawerItem(Icons.format_list_bulleted, 'MIS OFERTAS', () {}),
                   const SizedBox(height: 24),
                   GestureDetector(
                     onTap: () async {

@@ -214,8 +214,8 @@ class MyCompanyScreen extends StatelessWidget {
           elevation: 0,
           items: const [
             BottomNavigationBarItem(icon: Icon(Icons.grid_view), label: 'INICIO'),
-            BottomNavigationBarItem(icon: Icon(Icons.work_outline), label: 'POSTULAR'),
-            BottomNavigationBarItem(icon: Icon(Icons.calendar_today_outlined), label: 'CITAS'),
+            BottomNavigationBarItem(icon: Icon(Icons.work_outline), label: 'EMPLEOS'),
+            BottomNavigationBarItem(icon: Icon(Icons.calendar_today_outlined), label: 'ENTREVISTAS'),
             BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: 'PERFIL'),
           ],
         ),
