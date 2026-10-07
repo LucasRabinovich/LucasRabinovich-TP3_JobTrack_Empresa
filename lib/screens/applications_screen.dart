@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:job_track/screens/new_application_screen.dart';
 
 class ApplicationsScreen extends StatefulWidget {
   const ApplicationsScreen({super.key});
@@ -12,46 +15,10 @@ class _ApplicationsScreenState extends State<ApplicationsScreen> {
 
   String _selectedStatus = 'TODOS';
 
-  final List<Map<String, String>> _applications = [
-    {
-      'company': 'Mercado Libre',
-      'role': 'Flutter Developer',
-      'status': 'EN PROCESO',
-    },
-    {
-      'company': 'Globant',
-      'role': 'Mobile Developer',
-      'status': 'OFERTA',
-    },
-    {
-      'company': 'Accenture',
-      'role': 'Junior Developer',
-      'status': 'RECHAZADO',
-    },
-  ];
-
   @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
-  }
-
-  List<Map<String, String>> get _filteredApplications {
-    final search = _searchController.text.toLowerCase();
-
-    return _applications.where((application) {
-      final company = application['company']!.toLowerCase();
-      final role = application['role']!.toLowerCase();
-      final status = application['status']!;
-
-      final matchesSearch =
-          company.contains(search) || role.contains(search);
-
-      final matchesStatus =
-          _selectedStatus == 'TODOS' || status == _selectedStatus;
-
-      return matchesSearch && matchesStatus;
-    }).toList();
   }
 
   void _selectStatus(String status) {
@@ -62,6 +29,8 @@ class _ApplicationsScreenState extends State<ApplicationsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+
     const brutalistBorder = OutlineInputBorder(
       borderRadius: BorderRadius.zero,
       borderSide: BorderSide(
@@ -111,6 +80,50 @@ class _ApplicationsScreenState extends State<ApplicationsScreen> {
             ),
             const SizedBox(height: 24),
 
+            GestureDetector(
+              onTap: () async {
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        const NewApplicationScreen(),
+                  ),
+                );
+
+                if (mounted) {
+                  setState(() {});
+                }
+              },
+              child: Container(
+                height: 52,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFD4FF00),
+                  border: Border.all(
+                    color: Colors.black,
+                    width: 2,
+                  ),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Colors.black,
+                      offset: Offset(4, 4),
+                      blurRadius: 0,
+                    ),
+                  ],
+                ),
+                child: const Center(
+                  child: Text(
+                    '+ NUEVA POSTULACIÓN',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 1,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 24),
+
             TextField(
               controller: _searchController,
               onChanged: (_) {
@@ -126,6 +139,7 @@ class _ApplicationsScreenState extends State<ApplicationsScreen> {
                 fillColor: Colors.white,
                 enabledBorder: brutalistBorder,
                 focusedBorder: brutalistBorder,
+                contentPadding: EdgeInsets.all(16),
               ),
             ),
 
@@ -136,6 +150,7 @@ class _ApplicationsScreenState extends State<ApplicationsScreen> {
               runSpacing: 8,
               children: [
                 _buildFilterButton('TODOS'),
+                _buildFilterButton('POSTULADO'),
                 _buildFilterButton('EN PROCESO'),
                 _buildFilterButton('OFERTA'),
                 _buildFilterButton('RECHAZADO'),
@@ -145,22 +160,118 @@ class _ApplicationsScreenState extends State<ApplicationsScreen> {
             const SizedBox(height: 24),
 
             Expanded(
-              child: _filteredApplications.isEmpty
+              child: user == null
                   ? const Center(
                       child: Text(
-                        'NO SE ENCONTRARON POSTULACIONES',
+                        'NO HAY USUARIO AUTENTICADO',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                     )
-                  : ListView.builder(
-                      itemCount: _filteredApplications.length,
-                      itemBuilder: (context, index) {
-                        final application =
-                            _filteredApplications[index];
+                  : StreamBuilder<QuerySnapshot>(
+                      stream: FirebaseFirestore.instance
+                          .collection('applications')
+                          .where(
+                            'userId',
+                            isEqualTo: user.uid,
+                          )
+                          .snapshots(),
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return const Center(
+                            child: CircularProgressIndicator(
+                              color: Colors.black,
+                            ),
+                          );
+                        }
 
-                        return _buildApplicationCard(application);
+                        if (snapshot.hasError) {
+                          return const Center(
+                            child: Text(
+                              'ERROR AL CARGAR POSTULACIONES',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          );
+                        }
+
+                        final docs = snapshot.data?.docs ?? [];
+
+                        final search =
+                            _searchController.text
+                                .trim()
+                                .toLowerCase();
+
+                        final filteredDocs = docs.where((doc) {
+                          final data =
+                              doc.data() as Map<String, dynamic>;
+
+                          final company =
+                              (data['company'] ?? '')
+                                  .toString()
+                                  .toLowerCase();
+
+                          final role =
+                              (data['role'] ?? '')
+                                  .toString()
+                                  .toLowerCase();
+
+                          final status =
+                              (data['status'] ?? '')
+                                  .toString();
+
+                          final matchesSearch =
+                              company.contains(search) ||
+                              role.contains(search);
+
+                          final matchesStatus =
+                              _selectedStatus == 'TODOS' ||
+                              status == _selectedStatus;
+
+                          return matchesSearch &&
+                              matchesStatus;
+                        }).toList();
+
+                        if (filteredDocs.isEmpty) {
+                          return const Center(
+                            child: Text(
+                              'NO SE ENCONTRARON POSTULACIONES',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          );
+                        }
+
+                        return ListView.builder(
+                          itemCount: filteredDocs.length,
+                          itemBuilder: (context, index) {
+                            final data =
+                                filteredDocs[index].data()
+                                    as Map<String, dynamic>;
+
+                            return _buildApplicationCard(
+                              company:
+                                  data['company']?.toString() ??
+                                  'Sin empresa',
+                              role:
+                                  data['role']?.toString() ??
+                                  'Sin puesto',
+                              status:
+                                  data['status']?.toString() ??
+                                  'SIN ESTADO',
+                              modality:
+                                  data['modality']?.toString() ??
+                                  '',
+                              salary:
+                                  data['salary']?.toString() ??
+                                  '',
+                            );
+                          },
+                        );
                       },
                     ),
             ),
@@ -202,9 +313,13 @@ class _ApplicationsScreenState extends State<ApplicationsScreen> {
     );
   }
 
-  Widget _buildApplicationCard(
-    Map<String, String> application,
-  ) {
+  Widget _buildApplicationCard({
+    required String company,
+    required String role,
+    required String status,
+    required String modality,
+    required String salary,
+  }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
@@ -226,21 +341,44 @@ class _ApplicationsScreenState extends State<ApplicationsScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            application['company']!,
+            company,
             style: const TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w900,
             ),
           ),
           const SizedBox(height: 6),
+
           Text(
-            application['role']!,
+            role,
             style: TextStyle(
               fontSize: 14,
               color: Colors.grey[700],
             ),
           ),
+
+          if (modality.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Text(
+              'Modalidad: $modality',
+              style: const TextStyle(
+                fontSize: 13,
+              ),
+            ),
+          ],
+
+          if (salary.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              'Salario: $salary',
+              style: const TextStyle(
+                fontSize: 13,
+              ),
+            ),
+          ],
+
           const SizedBox(height: 16),
+
           Container(
             padding: const EdgeInsets.symmetric(
               horizontal: 10,
@@ -254,7 +392,7 @@ class _ApplicationsScreenState extends State<ApplicationsScreen> {
               ),
             ),
             child: Text(
-              application['status']!,
+              status,
               style: const TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w900,
