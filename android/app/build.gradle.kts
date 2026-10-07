@@ -10,8 +10,7 @@ plugins {
 android {
     namespace = "com.example.job_track"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = "26.1.10909125"
-
+ndkVersion = "26.1.10909125"
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
