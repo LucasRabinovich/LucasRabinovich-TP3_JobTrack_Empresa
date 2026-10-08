@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:job_track/screens/login_screen.dart';
 import 'package:job_track/screens/my_company_screen.dart';
 import 'package:job_track/screens/create_offer_screen.dart';
+import 'package:job_track/screens/my_offers_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -172,9 +173,17 @@ class HomeScreen extends StatelessWidget {
           selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 10, fontFamily: 'monospace'),
           unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 10, fontFamily: 'monospace'),
           elevation: 0,
+          currentIndex: 0,
+          onTap: (index) {
+            if (index == 1) {
+              Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const MyOffersScreen()));
+            } else if (index == 3) {
+              Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const MyCompanyScreen()));
+            }
+          },
           items: const [
             BottomNavigationBarItem(icon: Icon(Icons.grid_view), label: 'INICIO'),
-            BottomNavigationBarItem(icon: Icon(Icons.format_list_bulleted), label: 'MIS AVISOS'),
+            BottomNavigationBarItem(icon: Icon(Icons.format_list_bulleted), label: 'OFERTAS'),
             BottomNavigationBarItem(icon: Icon(Icons.people_alt_outlined), label: 'CANDIDATOS'),
             BottomNavigationBarItem(icon: Icon(Icons.domain), label: 'PERFIL'),
           ],
@@ -218,7 +227,13 @@ class HomeScreen extends StatelessWidget {
                 children: [
                   _buildDrawerItem(Icons.grid_view, 'PANEL PRINCIPAL', () => Navigator.pop(context)),
                   const SizedBox(height: 12),
-                  _buildDrawerItem(Icons.format_list_bulleted, 'MIS AVISOS', () {}),
+                  _buildDrawerItem(Icons.format_list_bulleted, 'MIS OFERTAS', () {
+                    Navigator.pop(context);
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (context) => const MyOffersScreen()),
+                    );
+                  }),
                   const SizedBox(height: 12),
                   _buildDrawerItem(Icons.people_alt_outlined, 'CANDIDATOS', () {}),
                   const SizedBox(height: 24),

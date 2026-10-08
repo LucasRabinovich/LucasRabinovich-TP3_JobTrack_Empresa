@@ -3,7 +3,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class CreateOfferScreen extends StatefulWidget {
-  const CreateOfferScreen({super.key});
+  final String? offerId;
+  final Map<String, dynamic>? existingOffer;
+
+  const CreateOfferScreen({super.key, this.offerId, this.existingOffer});
 
   @override
   State<CreateOfferScreen> createState() => _CreateOfferScreenState();
@@ -13,19 +16,37 @@ class _CreateOfferScreenState extends State<CreateOfferScreen> {
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _salaryController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
+  final TextEditingController _locationController = TextEditingController();
   
   String _selectedModality = 'Remoto';
   String _selectedContract = 'Full-time';
+  String _selectedSeniority = 'Junior';
   bool _isLoading = false;
 
   final List<String> _modalityOptions = ['Remoto', 'Híbrido', 'Presencial'];
-  final List<String> _contractOptions = ['Full-time', 'Part-time', 'Pasantía'];
+  final List<String> _contractOptions = ['Full-time', 'Part-time', 'Freelance', 'Pasantía'];
+  final List<String> _seniorityOptions = ['Trainee', 'Junior', 'Semi-Senior', 'Senior'];
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.existingOffer != null) {
+      _titleController.text = widget.existingOffer!['title'] ?? '';
+      _salaryController.text = widget.existingOffer!['salaryRange'] ?? '';
+      _descriptionController.text = widget.existingOffer!['description'] ?? '';
+      _locationController.text = widget.existingOffer!['location'] ?? '';
+      _selectedModality = widget.existingOffer!['modality'] ?? 'Remoto';
+      _selectedContract = widget.existingOffer!['contractType'] ?? 'Full-time';
+      _selectedSeniority = widget.existingOffer!['seniority'] ?? 'Junior';
+    }
+  }
 
   @override
   void dispose() {
     _titleController.dispose();
     _salaryController.dispose();
     _descriptionController.dispose();
+    _locationController.dispose();
     super.dispose();
   }
 
@@ -33,10 +54,18 @@ class _CreateOfferScreenState extends State<CreateOfferScreen> {
     final title = _titleController.text.trim();
     final description = _descriptionController.text.trim();
     final salary = _salaryController.text.trim();
+    final location = _locationController.text.trim();
 
     if (title.isEmpty || description.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('El título y la descripción son obligatorios')),
+      );
+      return;
+    }
+
+    if ((_selectedModality == 'Presencial' || _selectedModality == 'Híbrido') && location.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Por favor indica la ubicación para esta modalidad')),
       );
       return;
     }
@@ -48,28 +77,35 @@ class _CreateOfferScreenState extends State<CreateOfferScreen> {
     try {
       final String uid = FirebaseAuth.instance.currentUser!.uid;
 
-      // Guarda la oferta en una nueva colección 'job_offers'
-      await FirebaseFirestore.instance.collection('job_offers').add({
-        'companyId': uid,
+      final offerData = {
         'title': title,
         'modality': _selectedModality,
         'contractType': _selectedContract,
+        'seniority': _selectedSeniority,
+        'location': _selectedModality == 'Remoto' ? 'No aplica' : location,
         'salaryRange': salary.isNotEmpty ? salary : 'No especificado',
         'description': description,
         'isActive': true,
-        'createdAt': FieldValue.serverTimestamp(), // Guarda la fecha y hora exacta
-      });
+      };
+
+      if (widget.offerId == null) {
+        offerData['companyId'] = uid;
+        offerData['createdAt'] = FieldValue.serverTimestamp();
+        await FirebaseFirestore.instance.collection('job_offers').add(offerData);
+      } else {
+        await FirebaseFirestore.instance.collection('job_offers').doc(widget.offerId).update(offerData);
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('¡Oferta publicada con éxito!')),
+          SnackBar(content: Text(widget.offerId == null ? '¡Oferta publicada con éxito!' : '¡Oferta actualizada!')),
         );
-        Navigator.pop(context); // Vuelve al Home tras publicar
+        Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al publicar: $e')),
+          SnackBar(content: Text('Error: $e')),
         );
       }
     } finally {
@@ -88,6 +124,9 @@ class _CreateOfferScreenState extends State<CreateOfferScreen> {
       borderSide: BorderSide(color: Colors.black, width: 2.0),
     );
 
+    final bool requiresLocation = _selectedModality == 'Presencial' || _selectedModality == 'Híbrido';
+    final bool isEditing = widget.offerId != null;
+
     return Scaffold(
       backgroundColor: const Color(0xFFF4F4F4),
       appBar: AppBar(
@@ -96,12 +135,7 @@ class _CreateOfferScreenState extends State<CreateOfferScreen> {
         iconTheme: const IconThemeData(color: Colors.black),
         title: const Text(
           'JOB TRACKER',
-          style: TextStyle(
-            color: Colors.black,
-            fontWeight: FontWeight.w900,
-            letterSpacing: 1.5,
-            fontSize: 20,
-          ),
+          style: TextStyle(color: Colors.black, fontWeight: FontWeight.w900, letterSpacing: 1.5, fontSize: 20),
         ),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(2.0),
@@ -114,146 +148,114 @@ class _CreateOfferScreenState extends State<CreateOfferScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text(
-                'NUEVA OFERTA',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 1.0,
-                  color: Colors.black,
-                ),
+              Text(
+                isEditing ? 'EDITAR OFERTA' : 'NUEVA OFERTA',
+                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, letterSpacing: 1.0, color: Colors.black),
               ),
               const SizedBox(height: 8),
               Container(height: 2, color: Colors.black),
               const SizedBox(height: 24),
               
-              // TÍTULO
-              const Text(
-                'TÍTULO DEL PUESTO *',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.0),
-              ),
+              const Text('TÍTULO DEL PUESTO *', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
               const SizedBox(height: 8),
               TextField(
                 controller: _titleController,
                 style: const TextStyle(fontFamily: 'monospace'),
                 decoration: const InputDecoration(
-                  hintText: 'Ej. Backend Node.js',
-                  hintStyle: TextStyle(color: Colors.grey),
-                  filled: true,
-                  fillColor: Colors.white,
-                  enabledBorder: brutalistBorder,
-                  focusedBorder: brutalistBorder,
-                  contentPadding: EdgeInsets.all(16),
+                  hintText: 'Ej. Backend Node.js', hintStyle: TextStyle(color: Colors.grey),
+                  filled: true, fillColor: Colors.white,
+                  enabledBorder: brutalistBorder, focusedBorder: brutalistBorder, contentPadding: EdgeInsets.all(16),
                 ),
               ),
               const SizedBox(height: 24),
 
-              // MODALIDAD (Dropdown)
-              const Text(
-                'MODALIDAD',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.0),
+              const Text('NIVEL / SENIORITY', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
+              const SizedBox(height: 8),
+              DropdownButtonFormField<String>(
+                value: _selectedSeniority,
+                icon: const Icon(Icons.arrow_drop_down, color: Colors.black),
+                style: const TextStyle(fontFamily: 'monospace', color: Colors.black, fontSize: 16),
+                decoration: const InputDecoration(
+                  filled: true, fillColor: Colors.white,
+                  enabledBorder: brutalistBorder, focusedBorder: brutalistBorder, contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                ),
+                items: _seniorityOptions.map((String value) => DropdownMenuItem<String>(value: value, child: Text(value))).toList(),
+                onChanged: (newValue) => setState(() => _selectedSeniority = newValue!),
               ),
+              const SizedBox(height: 24),
+
+              const Text('MODALIDAD', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
               const SizedBox(height: 8),
               DropdownButtonFormField<String>(
                 value: _selectedModality,
                 icon: const Icon(Icons.arrow_drop_down, color: Colors.black),
                 style: const TextStyle(fontFamily: 'monospace', color: Colors.black, fontSize: 16),
                 decoration: const InputDecoration(
-                  filled: true,
-                  fillColor: Colors.white,
-                  enabledBorder: brutalistBorder,
-                  focusedBorder: brutalistBorder,
-                  contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  filled: true, fillColor: Colors.white,
+                  enabledBorder: brutalistBorder, focusedBorder: brutalistBorder, contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 ),
-                items: _modalityOptions.map((String value) {
-                  return DropdownMenuItem<String>(
-                    value: value,
-                    child: Text(value),
-                  );
-                }).toList(),
-                onChanged: (newValue) {
-                  setState(() {
-                    _selectedModality = newValue!;
-                  });
-                },
+                items: _modalityOptions.map((String value) => DropdownMenuItem<String>(value: value, child: Text(value))).toList(),
+                onChanged: (newValue) => setState(() => _selectedModality = newValue!),
               ),
               const SizedBox(height: 24),
 
-              // TIPO DE CONTRATO (Dropdown)
-              const Text(
-                'TIPO DE CONTRATO',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.0),
-              ),
+              if (requiresLocation) ...[
+                const Text('UBICACIÓN / CIUDAD *', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _locationController,
+                  style: const TextStyle(fontFamily: 'monospace'),
+                  decoration: const InputDecoration(
+                    hintText: 'Ej. Buenos Aires, Centro', hintStyle: TextStyle(color: Colors.grey),
+                    filled: true, fillColor: Colors.white,
+                    enabledBorder: brutalistBorder, focusedBorder: brutalistBorder, contentPadding: EdgeInsets.all(16),
+                  ),
+                ),
+                const SizedBox(height: 24),
+              ],
+
+              const Text('TIPO DE CONTRATO', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
               const SizedBox(height: 8),
               DropdownButtonFormField<String>(
                 value: _selectedContract,
                 icon: const Icon(Icons.arrow_drop_down, color: Colors.black),
                 style: const TextStyle(fontFamily: 'monospace', color: Colors.black, fontSize: 16),
                 decoration: const InputDecoration(
-                  filled: true,
-                  fillColor: Colors.white,
-                  enabledBorder: brutalistBorder,
-                  focusedBorder: brutalistBorder,
-                  contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  filled: true, fillColor: Colors.white,
+                  enabledBorder: brutalistBorder, focusedBorder: brutalistBorder, contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 ),
-                items: _contractOptions.map((String value) {
-                  return DropdownMenuItem<String>(
-                    value: value,
-                    child: Text(value),
-                  );
-                }).toList(),
-                onChanged: (newValue) {
-                  setState(() {
-                    _selectedContract = newValue!;
-                  });
-                },
+                items: _contractOptions.map((String value) => DropdownMenuItem<String>(value: value, child: Text(value))).toList(),
+                onChanged: (newValue) => setState(() => _selectedContract = newValue!),
               ),
               const SizedBox(height: 24),
 
-              // RANGO SALARIAL
-              const Text(
-                'RANGO SALARIAL (OPCIONAL)',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.0),
-              ),
+              const Text('RANGO SALARIAL (OPCIONAL)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
               const SizedBox(height: 8),
               TextField(
                 controller: _salaryController,
                 style: const TextStyle(fontFamily: 'monospace'),
                 decoration: const InputDecoration(
-                  hintText: 'Ej. \$2000 - \$3000 USD',
-                  hintStyle: TextStyle(color: Colors.grey),
-                  filled: true,
-                  fillColor: Colors.white,
-                  enabledBorder: brutalistBorder,
-                  focusedBorder: brutalistBorder,
-                  contentPadding: EdgeInsets.all(16),
+                  hintText: 'Ej. \$2000 - \$3000 USD', hintStyle: TextStyle(color: Colors.grey),
+                  filled: true, fillColor: Colors.white,
+                  enabledBorder: brutalistBorder, focusedBorder: brutalistBorder, contentPadding: EdgeInsets.all(16),
                 ),
               ),
               const SizedBox(height: 24),
 
-              // DESCRIPCIÓN
-              const Text(
-                'DESCRIPCIÓN / REQUISITOS *',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.0),
-              ),
+              const Text('DESCRIPCIÓN / REQUISITOS *', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
               const SizedBox(height: 8),
               TextField(
                 controller: _descriptionController,
                 maxLines: 5,
                 style: const TextStyle(fontFamily: 'monospace'),
                 decoration: const InputDecoration(
-                  hintText: 'Responsabilidades, stack tecnológico, beneficios...',
-                  hintStyle: TextStyle(color: Colors.grey),
-                  filled: true,
-                  fillColor: Colors.white,
-                  enabledBorder: brutalistBorder,
-                  focusedBorder: brutalistBorder,
-                  contentPadding: EdgeInsets.all(16),
+                  hintText: 'Responsabilidades, stack tecnológico, beneficios...', hintStyle: TextStyle(color: Colors.grey),
+                  filled: true, fillColor: Colors.white,
+                  enabledBorder: brutalistBorder, focusedBorder: brutalistBorder, contentPadding: EdgeInsets.all(16),
                 ),
               ),
               const SizedBox(height: 40),
 
-              // BOTÓN PUBLICAR
               GestureDetector(
                 onTap: _handlePublish,
                 child: Container(
@@ -261,39 +263,20 @@ class _CreateOfferScreenState extends State<CreateOfferScreen> {
                   decoration: BoxDecoration(
                     color: _isLoading ? Colors.grey[800] : Colors.black,
                     border: Border.all(color: Colors.black, width: 2.0),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Colors.black,
-                        offset: Offset(4, 4),
-                        blurRadius: 0,
-                      ),
-                    ],
+                    boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(4, 4), blurRadius: 0)],
                   ),
                   child: Center(
                     child: _isLoading
-                        ? const SizedBox(
-                            height: 24,
-                            width: 24,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 3.0,
-                            ),
-                          )
-                        : const Text(
-                            'PUBLICAR OFERTA',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: 1.0,
-                              color: Colors.white,
-                            ),
+                        ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3.0))
+                        : Text(
+                            isEditing ? 'GUARDAR CAMBIOS' : 'PUBLICAR OFERTA',
+                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, letterSpacing: 1.0, color: Colors.white),
                           ),
                   ),
                 ),
               ),
               const SizedBox(height: 16),
 
-              // BOTÓN CANCELAR
               GestureDetector(
                 onTap: () {
                   if (!_isLoading) Navigator.pop(context);
@@ -303,24 +286,10 @@ class _CreateOfferScreenState extends State<CreateOfferScreen> {
                   decoration: BoxDecoration(
                     color: Colors.white,
                     border: Border.all(color: Colors.black, width: 2.0),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Colors.black,
-                        offset: Offset(4, 4),
-                        blurRadius: 0,
-                      ),
-                    ],
+                    boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(4, 4), blurRadius: 0)],
                   ),
                   child: const Center(
-                    child: Text(
-                      'CANCELAR',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 1.0,
-                        color: Colors.black,
-                      ),
-                    ),
+                    child: Text('CANCELAR', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, letterSpacing: 1.0, color: Colors.black)),
                   ),
                 ),
               ),
