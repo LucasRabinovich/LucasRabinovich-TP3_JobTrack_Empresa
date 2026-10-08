@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:job_track/screens/login_screen.dart';
 import 'package:job_track/screens/my_company_screen.dart';
+import 'package:job_track/screens/create_offer_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -84,7 +85,12 @@ class HomeScreen extends StatelessWidget {
                 const SizedBox(height: 40),
                 GestureDetector(
                   onTap: () {
-                    // TODO: Conectar con la pantalla de Crear Oferta
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const CreateOfferScreen(),
+                      ),
+                    );
                   },
                   child: Container(
                     height: 56,
