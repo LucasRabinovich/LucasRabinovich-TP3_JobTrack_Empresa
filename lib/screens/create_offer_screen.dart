@@ -172,7 +172,7 @@ class _CreateOfferScreenState extends State<CreateOfferScreen> {
               const Text('NIVEL / SENIORITY', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
               const SizedBox(height: 8),
               DropdownButtonFormField<String>(
-                value: _selectedSeniority,
+                initialValue: _selectedSeniority,
                 icon: const Icon(Icons.arrow_drop_down, color: Colors.black),
                 style: const TextStyle(fontFamily: 'monospace', color: Colors.black, fontSize: 16),
                 decoration: const InputDecoration(
@@ -187,7 +187,7 @@ class _CreateOfferScreenState extends State<CreateOfferScreen> {
               const Text('MODALIDAD', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
               const SizedBox(height: 8),
               DropdownButtonFormField<String>(
-                value: _selectedModality,
+                initialValue: _selectedModality,
                 icon: const Icon(Icons.arrow_drop_down, color: Colors.black),
                 style: const TextStyle(fontFamily: 'monospace', color: Colors.black, fontSize: 16),
                 decoration: const InputDecoration(
@@ -217,7 +217,7 @@ class _CreateOfferScreenState extends State<CreateOfferScreen> {
               const Text('TIPO DE CONTRATO', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
               const SizedBox(height: 8),
               DropdownButtonFormField<String>(
-                value: _selectedContract,
+                initialValue: _selectedContract,
                 icon: const Icon(Icons.arrow_drop_down, color: Colors.black),
                 style: const TextStyle(fontFamily: 'monospace', color: Colors.black, fontSize: 16),
                 decoration: const InputDecoration(
