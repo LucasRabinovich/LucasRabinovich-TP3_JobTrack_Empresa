@@ -1,13 +1,39 @@
+
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+
 import 'package:job_track/screens/login_screen.dart';
 import 'package:job_track/screens/my_company_screen.dart';
 import 'package:job_track/screens/create_offer_screen.dart';
 import 'package:job_track/screens/my_offers_screen.dart';
+import 'package:job_track/screens/candidates_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
+
+  void _openCandidates(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const CandidatesScreen(),
+      ),
+    );
+  }
+
+  Future<void> _signOut(BuildContext context) async {
+    await FirebaseAuth.instance.signOut();
+
+    if (!context.mounted) return;
+
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const LoginScreen(),
+      ),
+      (route) => false,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -33,25 +59,52 @@ class HomeScreen extends StatelessWidget {
           ),
         ),
         bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(2.0),
-          child: Container(color: Colors.black, height: 2.0),
+          preferredSize: const Size.fromHeight(2),
+          child: Container(
+            color: Colors.black,
+            height: 2,
+          ),
         ),
-        iconTheme: const IconThemeData(color: Colors.black),
+        iconTheme: const IconThemeData(
+          color: Colors.black,
+        ),
+        actions: [
+          Builder(
+            builder: (context) => IconButton(
+              icon: const Icon(Icons.menu),
+              onPressed: () {
+                Scaffold.of(context).openEndDrawer();
+              },
+            ),
+          ),
+        ],
       ),
       endDrawer: _buildDrawer(context),
-      body: FutureBuilder<DocumentSnapshot>(
-        future: FirebaseFirestore.instance.collection('users').doc(user.uid).get(),
+      body: FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+        future: FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator(color: Colors.black));
+            return const Center(
+              child: CircularProgressIndicator(
+                color: Colors.black,
+              ),
+            );
           }
 
-          if (snapshot.hasError || !snapshot.hasData || !snapshot.data!.exists) {
-            return const Center(child: Text('Cargando base de datos...'));
+          if (snapshot.hasError ||
+              !snapshot.hasData ||
+              !snapshot.data!.exists) {
+            return const Center(
+              child: Text('No se pudo cargar el perfil de empresa.'),
+            );
           }
 
-          final userData = snapshot.data!.data() as Map<String, dynamic>;
-          final String name = userData['name'] ?? 'Empresa';
+          final userData = snapshot.data!.data() ?? {};
+          final String name =
+              userData['name']?.toString() ?? 'Empresa';
 
           return Padding(
             padding: const EdgeInsets.symmetric(horizontal: 32),
@@ -69,10 +122,16 @@ class HomeScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.black,
-                    border: Border.all(color: Colors.black, width: 2),
+                    border: Border.all(
+                      color: Colors.black,
+                      width: 2,
+                    ),
                   ),
                   child: const Text(
                     'PERFIL: EMPRESA',
@@ -84,75 +143,53 @@ class HomeScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 40),
-                GestureDetector(
+                _buildActionButton(
+                  title: 'PUBLICAR OFERTA',
+                  icon: Icons.add_circle_outline,
                   onTap: () {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => const CreateOfferScreen(),
+                        builder: (context) =>
+                            const CreateOfferScreen(),
                       ),
                     );
                   },
-                  child: Container(
-                    height: 56,
-                    decoration: BoxDecoration(
-                      color: Colors.black,
-                      border: Border.all(
-                        color: Colors.black,
-                        width: 2,
-                      ),
-                      boxShadow: const [
-                        BoxShadow(
-                          color: Colors.black,
-                          offset: Offset(4, 4),
-                          blurRadius: 0,
-                        ),
-                      ],
-                    ),
-                    child: const Center(
-                      child: Text(
-                        'PUBLICAR OFERTA',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 1,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ),
                 ),
-                const SizedBox(height: 24),
-                ElevatedButton(
-                  onPressed: () async {
-                    await FirebaseAuth.instance.signOut();
-                    if (context.mounted) {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const LoginScreen(),
-                        ),
-                      );
-                    }
+                const SizedBox(height: 18),
+                _buildActionButton(
+                  title: 'VER MIS OFERTAS',
+                  icon: Icons.format_list_bulleted,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            const MyOffersScreen(),
+                      ),
+                    );
                   },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 32,
-                      vertical: 16,
+                ),
+                const SizedBox(height: 18),
+                _buildActionButton(
+                  title: 'VER CANDIDATOS',
+                  icon: Icons.people_alt_outlined,
+                  onTap: () => _openCandidates(context),
+                ),
+                const SizedBox(height: 30),
+                OutlinedButton.icon(
+                  onPressed: () => _signOut(context),
+                  icon: const Icon(Icons.logout),
+                  label: const Text('CERRAR SESIÓN'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.black,
+                    padding: const EdgeInsets.all(16),
+                    side: const BorderSide(
+                      color: Colors.black,
+                      width: 2,
                     ),
                     shape: const RoundedRectangleBorder(
                       borderRadius: BorderRadius.zero,
-                      side: BorderSide(color: Colors.black, width: 2),
-                    ),
-                    elevation: 0,
-                  ),
-                  child: const Text(
-                    'CERRAR SESIÓN',
-                    style: TextStyle(
-                      color: Colors.black,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1,
                     ),
                   ),
                 ),
@@ -163,29 +200,114 @@ class HomeScreen extends StatelessWidget {
       ),
       bottomNavigationBar: Container(
         decoration: const BoxDecoration(
-          border: Border(top: BorderSide(color: Colors.black, width: 2.0)),
+          border: Border(
+            top: BorderSide(
+              color: Colors.black,
+              width: 2,
+            ),
+          ),
         ),
         child: BottomNavigationBar(
           backgroundColor: const Color(0xFFF4F4F4),
           type: BottomNavigationBarType.fixed,
           selectedItemColor: Colors.black,
-          unselectedItemColor: Colors.grey[600],
-          selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 10, fontFamily: 'monospace'),
-          unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 10, fontFamily: 'monospace'),
+          unselectedItemColor: Colors.grey,
+          selectedLabelStyle: const TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 10,
+            fontFamily: 'monospace',
+          ),
+          unselectedLabelStyle: const TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 10,
+            fontFamily: 'monospace',
+          ),
           elevation: 0,
           currentIndex: 0,
           onTap: (index) {
             if (index == 1) {
-              Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const MyOffersScreen()));
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const MyOffersScreen(),
+                ),
+              );
+            } else if (index == 2) {
+              _openCandidates(context);
             } else if (index == 3) {
-              Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const MyCompanyScreen()));
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const MyCompanyScreen(),
+                ),
+              );
             }
           },
           items: const [
-            BottomNavigationBarItem(icon: Icon(Icons.grid_view), label: 'INICIO'),
-            BottomNavigationBarItem(icon: Icon(Icons.format_list_bulleted), label: 'OFERTAS'),
-            BottomNavigationBarItem(icon: Icon(Icons.people_alt_outlined), label: 'CANDIDATOS'),
-            BottomNavigationBarItem(icon: Icon(Icons.domain), label: 'PERFIL'),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.grid_view),
+              label: 'INICIO',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.format_list_bulleted),
+              label: 'OFERTAS',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.people_alt_outlined),
+              label: 'CANDIDATOS',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.domain),
+              label: 'PERFIL',
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActionButton({
+    required String title,
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: 56,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        decoration: BoxDecoration(
+          color: Colors.black,
+          border: Border.all(
+            color: Colors.black,
+            width: 2,
+          ),
+          boxShadow: const [
+            BoxShadow(
+              color: Colors.black,
+              offset: Offset(4, 4),
+              blurRadius: 0,
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: Colors.white),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Text(
+                title,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1,
+                ),
+              ),
+            ),
+            const Icon(
+              Icons.arrow_forward,
+              color: Colors.white,
+            ),
           ],
         ),
       ),
@@ -195,26 +317,29 @@ class HomeScreen extends StatelessWidget {
   Widget _buildDrawer(BuildContext context) {
     return Drawer(
       backgroundColor: const Color(0xFFF4F4F4),
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.zero,
+      ),
       child: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
-              padding: const EdgeInsets.all(16.0),
+              padding: const EdgeInsets.all(16),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                mainAxisAlignment:
+                    MainAxisAlignment.spaceBetween,
                 children: [
                   const Text(
                     'JOB TRACKER',
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w900,
-                      letterSpacing: 1.0,
+                      letterSpacing: 1,
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close, color: Colors.black),
+                    icon: const Icon(Icons.close),
                     onPressed: () => Navigator.pop(context),
                   ),
                 ],
@@ -223,69 +348,59 @@ class HomeScreen extends StatelessWidget {
             Container(height: 2, color: Colors.black),
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.all(16.0),
+                padding: const EdgeInsets.all(16),
                 children: [
-                  _buildDrawerItem(Icons.grid_view, 'PANEL PRINCIPAL', () => Navigator.pop(context)),
+                  _buildDrawerItem(
+                    Icons.grid_view,
+                    'PANEL PRINCIPAL',
+                    () => Navigator.pop(context),
+                  ),
                   const SizedBox(height: 12),
-                  _buildDrawerItem(Icons.format_list_bulleted, 'MIS OFERTAS', () {
-                    Navigator.pop(context);
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(builder: (context) => const MyOffersScreen()),
-                    );
-                  }),
+                  _buildDrawerItem(
+                    Icons.format_list_bulleted,
+                    'MIS OFERTAS',
+                    () {
+                      Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              const MyOffersScreen(),
+                        ),
+                      );
+                    },
+                  ),
                   const SizedBox(height: 12),
-                  _buildDrawerItem(Icons.people_alt_outlined, 'CANDIDATOS', () {}),
+                  _buildDrawerItem(
+                    Icons.people_alt_outlined,
+                    'CANDIDATOS',
+                    () {
+                      Navigator.pop(context);
+                      _openCandidates(context);
+                    },
+                  ),
                   const SizedBox(height: 24),
                   Container(height: 2, color: Colors.black),
                   const SizedBox(height: 24),
-                  _buildDrawerItem(Icons.domain, 'MI EMPRESA', () {
-                    Navigator.pop(context);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const MyCompanyScreen()),
-                    );
-                  }),
-                  const SizedBox(height: 24),
-                  GestureDetector(
-                    onTap: () async {
-                      await FirebaseAuth.instance.signOut();
-                      if (context.mounted) {
-                        Navigator.pushAndRemoveUntil(
-                          context,
-                          MaterialPageRoute(builder: (context) => const LoginScreen()),
-                          (route) => false,
-                        );
-                      }
+                  _buildDrawerItem(
+                    Icons.domain,
+                    'MI EMPRESA',
+                    () {
+                      Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              const MyCompanyScreen(),
+                        ),
+                      );
                     },
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFD1D1),
-                        border: Border.all(color: Colors.black, width: 2.0),
-                        boxShadow: const [
-                          BoxShadow(
-                            color: Colors.black,
-                            offset: Offset(4, 4),
-                            blurRadius: 0,
-                          ),
-                        ],
-                      ),
-                      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
-                      child: const Row(
-                        children: [
-                          Icon(Icons.logout, color: Colors.red),
-                          SizedBox(width: 16),
-                          Text(
-                            'SALIR',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w900,
-                              color: Colors.red,
-                              letterSpacing: 1.0,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  _buildDrawerItem(
+                    Icons.logout,
+                    'CERRAR SESIÓN',
+                    () => _signOut(context),
                   ),
                 ],
               ),
@@ -296,13 +411,21 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildDrawerItem(IconData icon, String title, VoidCallback onTap) {
+  Widget _buildDrawerItem(
+    IconData icon,
+    String title,
+    VoidCallback onTap,
+  ) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.white,
-          border: Border.all(color: Colors.black, width: 2.0),
+          border: Border.all(
+            color: Colors.black,
+            width: 2,
+          ),
           boxShadow: const [
             BoxShadow(
               color: Colors.black,
@@ -311,17 +434,15 @@ class HomeScreen extends StatelessWidget {
             ),
           ],
         ),
-        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
         child: Row(
           children: [
-            Icon(icon, color: Colors.black),
+            Icon(icon),
             const SizedBox(width: 16),
             Text(
               title,
               style: const TextStyle(
                 fontWeight: FontWeight.w900,
-                letterSpacing: 1.0,
-                color: Colors.black,
+                letterSpacing: 1,
               ),
             ),
           ],
