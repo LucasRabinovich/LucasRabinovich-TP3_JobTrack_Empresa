@@ -6,7 +6,12 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'candidate_detail_screen.dart';
 
 class CandidatesScreen extends StatefulWidget {
-  const CandidatesScreen({super.key});
+  final String? offerId;
+
+  const CandidatesScreen({
+    super.key,
+    this.offerId,
+  });
 
   @override
   State<CandidatesScreen> createState() => _CandidatesScreenState();
@@ -27,6 +32,14 @@ class _CandidatesScreenState extends State<CandidatesScreen> {
     'OFERTA',
     'RECHAZADO',
   ];
+
+  @override
+  void initState() {
+    super.initState();
+
+    // Si llegamos desde una oferta, la seleccionamos.
+    selectedOfferId = widget.offerId;
+  }
 
   Widget buildStatus(String status) {
     return Container(
@@ -109,7 +122,6 @@ class _CandidatesScreenState extends State<CandidatesScreen> {
                 }
 
                 final profile = snapshot.data!.data();
-
                 final name =
                     profile?['name']?.toString().trim() ?? '';
 
@@ -135,9 +147,7 @@ class _CandidatesScreenState extends State<CandidatesScreen> {
 
           Text(
             'PUESTO: $role',
-            style: const TextStyle(
-              fontSize: 13,
-            ),
+            style: const TextStyle(fontSize: 13),
           ),
 
           const SizedBox(height: 14),
@@ -213,6 +223,7 @@ class _CandidatesScreenState extends State<CandidatesScreen> {
       backgroundColor: background,
       appBar: AppBar(
         backgroundColor: lime,
+        automaticallyImplyLeading: true,
         iconTheme: const IconThemeData(
           color: Colors.black,
         ),
@@ -267,7 +278,7 @@ class _CandidatesScreenState extends State<CandidatesScreen> {
           final currentOfferId =
               selectedOfferId != null &&
                       validOfferIds.contains(selectedOfferId)
-                  ? selectedOfferId
+                  ? selectedOfferId!
                   : offers.first.id;
 
           return Column(
@@ -405,6 +416,7 @@ class _CandidatesScreenState extends State<CandidatesScreen> {
                         applicationsSnapshot.data!.docs.where((doc) {
                       final data = doc.data();
 
+                      // Solo postulaciones de esta empresa.
                       if (data['companyId'] != user.uid) {
                         return false;
                       }
@@ -449,4 +461,3 @@ class _CandidatesScreenState extends State<CandidatesScreen> {
     );
   }
 }
-

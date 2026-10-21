@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -6,12 +5,27 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'home_screen.dart';
 import 'my_company_screen.dart';
 import 'create_offer_screen.dart';
+import 'candidates_screen.dart';
 
 class MyOffersScreen extends StatelessWidget {
   const MyOffersScreen({super.key});
 
   static const Color lime = Color(0xFFD4FF00);
   static const Color background = Color(0xFFF4F4F4);
+
+  void _openCandidates(
+    BuildContext context, {
+    String? offerId,
+  }) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => CandidatesScreen(
+          offerId: offerId,
+        ),
+      ),
+    );
+  }
 
   Future<void> _changeOfferStatus(
     BuildContext context,
@@ -28,11 +42,16 @@ class MyOffersScreen extends StatelessWidget {
         backgroundColor: Colors.white,
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.zero,
-          side: BorderSide(color: Colors.black, width: 2),
+          side: BorderSide(
+            color: Colors.black,
+            width: 2,
+          ),
         ),
         title: Text(
           isActive ? 'CERRAR OFERTA' : 'REABRIR OFERTA',
-          style: const TextStyle(fontWeight: FontWeight.w900),
+          style: const TextStyle(
+            fontWeight: FontWeight.w900,
+          ),
         ),
         content: Text(
           isActive
@@ -44,16 +63,25 @@ class MyOffersScreen extends StatelessWidget {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
+            onPressed: () => Navigator.pop(
+              dialogContext,
+              false,
+            ),
             child: const Text(
               'CANCELAR',
-              style: TextStyle(color: Colors.black),
+              style: TextStyle(
+                color: Colors.black,
+              ),
             ),
           ),
           ElevatedButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
+            onPressed: () => Navigator.pop(
+              dialogContext,
+              true,
+            ),
             style: ElevatedButton.styleFrom(
-              backgroundColor: isActive ? Colors.black : lime,
+              backgroundColor:
+                  isActive ? Colors.black : lime,
               foregroundColor:
                   isActive ? Colors.white : Colors.black,
               shape: const RoundedRectangleBorder(
@@ -68,7 +96,9 @@ class MyOffersScreen extends StatelessWidget {
       ),
     );
 
-    if (shouldChange != true || !context.mounted) return;
+    if (shouldChange != true || !context.mounted) {
+      return;
+    }
 
     try {
       final offerRef = FirebaseFirestore.instance
@@ -79,7 +109,9 @@ class MyOffersScreen extends StatelessWidget {
 
       if (!offerSnapshot.exists ||
           offerSnapshot.data()?['companyId'] != user.uid) {
-        throw Exception('La oferta no pertenece a esta empresa.');
+        throw Exception(
+          'La oferta no pertenece a esta empresa.',
+        );
       }
 
       await offerRef.update({
@@ -103,14 +135,18 @@ class MyOffersScreen extends StatelessWidget {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('No se pudo actualizar la oferta: $e'),
+          content: Text(
+            'No se pudo actualizar la oferta: $e',
+          ),
         ),
       );
     }
   }
 
   Widget _buildTag(String text) {
-    if (text.isEmpty) return const SizedBox.shrink();
+    if (text.isEmpty) {
+      return const SizedBox.shrink();
+    }
 
     return Container(
       padding: const EdgeInsets.symmetric(
@@ -119,7 +155,10 @@ class MyOffersScreen extends StatelessWidget {
       ),
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border.all(color: Colors.black, width: 1.5),
+        border: Border.all(
+          color: Colors.black,
+          width: 1.5,
+        ),
       ),
       child: Text(
         text.toUpperCase(),
@@ -136,24 +175,24 @@ class MyOffersScreen extends StatelessWidget {
     String offerId,
     Map<String, dynamic> offer,
   ) {
-    final isActive = offer['isActive'] == true;
+    final bool isActive = offer['isActive'] == true;
 
-    final title =
+    final String title =
         offer['title']?.toString() ?? 'SIN TÍTULO';
 
-    final seniority =
+    final String seniority =
         offer['seniority']?.toString() ?? 'No especificado';
 
-    final modality =
+    final String modality =
         offer['modality']?.toString() ?? '';
 
-    final contract =
+    final String contract =
         offer['contractType']?.toString() ?? '';
 
-    final description =
+    final String description =
         offer['description']?.toString() ?? '';
 
-    final salary =
+    final String salary =
         offer['salaryRange']?.toString() ?? 'No especificado';
 
     return Container(
@@ -161,7 +200,10 @@ class MyOffersScreen extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border.all(color: Colors.black, width: 2),
+        border: Border.all(
+          color: Colors.black,
+          width: 2,
+        ),
         boxShadow: const [
           BoxShadow(
             color: Colors.black,
@@ -220,9 +262,12 @@ class MyOffersScreen extends StatelessWidget {
               ),
             ),
             child: Text(
-              isActive ? 'OFERTA ACTIVA' : 'OFERTA CERRADA',
+              isActive
+                  ? 'OFERTA ACTIVA'
+                  : 'OFERTA CERRADA',
               style: TextStyle(
-                color: isActive ? Colors.black : Colors.white,
+                color:
+                    isActive ? Colors.black : Colors.white,
                 fontSize: 11,
                 fontWeight: FontWeight.w900,
               ),
@@ -282,7 +327,10 @@ class MyOffersScreen extends StatelessWidget {
               QuerySnapshot<Map<String, dynamic>>>(
             stream: FirebaseFirestore.instance
                 .collection('applications')
-                .where('offerId', isEqualTo: offerId)
+                .where(
+                  'offerId',
+                  isEqualTo: offerId,
+                )
                 .snapshots(),
             builder: (context, snapshot) {
               if (snapshot.hasError) {
@@ -298,9 +346,19 @@ class MyOffersScreen extends StatelessWidget {
               if (!snapshot.hasData) {
                 return const Text(
                   'Cargando postulantes...',
-                  style: TextStyle(fontSize: 12),
+                  style: TextStyle(
+                    fontSize: 12,
+                  ),
                 );
               }
+
+              final count = snapshot.data!.docs
+                  .where(
+                    (doc) =>
+                        doc.data()['companyId'] ==
+                        FirebaseAuth.instance.currentUser?.uid,
+                  )
+                  .length;
 
               return Container(
                 padding: const EdgeInsets.symmetric(
@@ -315,7 +373,7 @@ class MyOffersScreen extends StatelessWidget {
                   ),
                 ),
                 child: Text(
-                  '${snapshot.data!.docs.length} POSTULANTES',
+                  '$count POSTULANTES',
                   style: const TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w900,
@@ -327,6 +385,41 @@ class MyOffersScreen extends StatelessWidget {
 
           const SizedBox(height: 20),
 
+          // VER POSTULANTES DE ESTA OFERTA
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () => _openCandidates(
+                context,
+                offerId: offerId,
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: lime,
+                foregroundColor: Colors.black,
+                padding: const EdgeInsets.all(16),
+                shape: const RoundedRectangleBorder(
+                  borderRadius: BorderRadius.zero,
+                  side: BorderSide(
+                    color: Colors.black,
+                    width: 2,
+                  ),
+                ),
+              ),
+              icon: const Icon(
+                Icons.people_alt_outlined,
+              ),
+              label: const Text(
+                'VER POSTULANTES',
+                style: TextStyle(
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 12),
+
+          // CERRAR O REABRIR OFERTA
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
@@ -355,7 +448,9 @@ class MyOffersScreen extends StatelessWidget {
                     : Icons.lock_open_outlined,
               ),
               label: Text(
-                isActive ? 'CERRAR OFERTA' : 'REABRIR OFERTA',
+                isActive
+                    ? 'CERRAR OFERTA'
+                    : 'REABRIR OFERTA',
                 style: const TextStyle(
                   fontWeight: FontWeight.w900,
                 ),
@@ -371,7 +466,10 @@ class MyOffersScreen extends StatelessWidget {
     return Container(
       decoration: const BoxDecoration(
         border: Border(
-          top: BorderSide(color: Colors.black, width: 2),
+          top: BorderSide(
+            color: Colors.black,
+            width: 2,
+          ),
         ),
       ),
       child: BottomNavigationBar(
@@ -396,8 +494,10 @@ class MyOffersScreen extends StatelessWidget {
                 builder: (_) => const HomeScreen(),
               ),
             );
+          } else if (index == 2) {
+            _openCandidates(context);
           } else if (index == 3) {
-            Navigator.pushReplacement(
+            Navigator.push(
               context,
               MaterialPageRoute(
                 builder: (_) => const MyCompanyScreen(),
@@ -444,7 +544,10 @@ class MyOffersScreen extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: background,
         elevation: 0,
-        automaticallyImplyLeading: false,
+        automaticallyImplyLeading: true,
+        iconTheme: const IconThemeData(
+          color: Colors.black,
+        ),
         title: const Text(
           'MIS AVISOS',
           style: TextStyle(
@@ -466,13 +569,17 @@ class MyOffersScreen extends StatelessWidget {
           QuerySnapshot<Map<String, dynamic>>>(
         stream: FirebaseFirestore.instance
             .collection('job_offers')
-            .where('companyId', isEqualTo: user.uid)
+            .where(
+              'companyId',
+              isEqualTo: user.uid,
+            )
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
             return Center(
               child: SelectableText(
-                'Error al cargar ofertas:\n${snapshot.error}',
+                'Error al cargar ofertas:\n'
+                '${snapshot.error}',
                 textAlign: TextAlign.center,
               ),
             );
@@ -529,6 +636,14 @@ class MyOffersScreen extends StatelessWidget {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.black,
                         foregroundColor: Colors.white,
+                        padding: const EdgeInsets.all(16),
+                        shape: const RoundedRectangleBorder(
+                          borderRadius: BorderRadius.zero,
+                          side: BorderSide(
+                            color: Colors.black,
+                            width: 2,
+                          ),
+                        ),
                       ),
                       child: const Text(
                         'CREAR MI PRIMERA OFERTA',

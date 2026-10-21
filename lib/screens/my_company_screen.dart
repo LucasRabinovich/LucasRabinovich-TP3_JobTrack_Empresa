@@ -1,20 +1,56 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:job_track/screens/login_screen.dart';
-import 'package:job_track/screens/edit_company_screen.dart';
+
+import 'login_screen.dart';
+import 'edit_company_screen.dart';
+import 'home_screen.dart';
+import 'my_offers_screen.dart';
+import 'candidates_screen.dart';
 
 class MyCompanyScreen extends StatelessWidget {
   const MyCompanyScreen({super.key});
+
+  static const Color background = Color(0xFFF4F4F4);
+  static const Color lime = Color(0xFFD4FF00);
+
+  // Navegación entre las pantallas de la App Empresa.
+  // Se conserva el historial para poder volver atrás.
+  void _navigateTo(BuildContext context, int index) {
+    Widget? destination;
+
+    switch (index) {
+      case 0:
+        destination = const HomeScreen();
+        break;
+      case 1:
+        destination = const MyOffersScreen();
+        break;
+      case 2:
+        destination = const CandidatesScreen();
+        break;
+      case 3:
+        return;
+    }
+
+    if (destination == null) return;
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => destination!,
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F4F4),
+      backgroundColor: background,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFF4F4F4),
+        backgroundColor: background,
         elevation: 0,
         automaticallyImplyLeading: false,
         title: const Text(
@@ -27,48 +63,93 @@ class MyCompanyScreen extends StatelessWidget {
           ),
         ),
         bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(2.0),
-          child: Container(color: Colors.black, height: 2.0),
+          preferredSize: const Size.fromHeight(2),
+          child: Container(
+            color: Colors.black,
+            height: 2,
+          ),
         ),
-        iconTheme: const IconThemeData(color: Colors.black),
+        iconTheme: const IconThemeData(
+          color: Colors.black,
+        ),
       ),
+
       endDrawer: _buildDrawer(context),
+
       body: user == null
-          ? const Center(child: Text('No hay sesión activa'))
-          : StreamBuilder<DocumentSnapshot>(
-              stream: FirebaseFirestore.instance.collection('users').doc(user.uid).snapshots(),
+          ? const Center(
+              child: Text('No hay sesión activa'),
+            )
+          : StreamBuilder<
+              DocumentSnapshot<Map<String, dynamic>>>(
+              stream: FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(user.uid)
+                  .snapshots(),
               builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
-                  return const Center(child: CircularProgressIndicator(color: Colors.black));
+                if (!snapshot.hasData && !snapshot.hasError) {
+                  return const Center(
+                    child: CircularProgressIndicator(
+                      color: Colors.black,
+                    ),
+                  );
                 }
 
-                if (snapshot.hasError || !snapshot.hasData || !snapshot.data!.exists) {
-                  return const Center(child: Text('Error al cargar datos'));
+                if (snapshot.hasError ||
+                    !snapshot.hasData ||
+                    !snapshot.data!.exists) {
+                  return const Center(
+                    child: Text('Error al cargar datos'),
+                  );
                 }
 
-                final userData = snapshot.data!.data() as Map<String, dynamic>;
-                final companyName = (userData['name'] ?? 'Empresa').toString().toUpperCase();
-                final industry = (userData['industry'] ?? 'Sin industria').toString().toUpperCase();
-                
-                final website = userData['website']?.toString().isNotEmpty == true ? userData['website'] : 'Añadir sitio web...';
-                final location = userData['location']?.toString().isNotEmpty == true ? userData['location'] : 'Añadir ubicación...';
-                final description = userData['description']?.toString().isNotEmpty == true ? userData['description'] : 'Aún no has añadido una descripción de tu empresa. Toca en EDITAR para completar tu perfil.';
+                final userData = snapshot.data!.data()!;
+
+                final companyName =
+                    (userData['name'] ?? 'Empresa')
+                        .toString()
+                        .toUpperCase();
+
+                final industry =
+                    (userData['industry'] ?? 'Sin industria')
+                        .toString()
+                        .toUpperCase();
+
+                final website = _fieldValue(
+                  userData['website'],
+                  'Añadir sitio web...',
+                );
+
+                final location = _fieldValue(
+                  userData['location'],
+                  'Añadir ubicación...',
+                );
+
+                final description = _fieldValue(
+                  userData['description'],
+                  'Aún no has añadido una descripción de tu empresa. '
+                  'Toca en EDITAR para completar tu perfil.',
+                );
 
                 return SingleChildScrollView(
-                  padding: const EdgeInsets.all(24.0),
+                  padding: const EdgeInsets.all(24),
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    crossAxisAlignment:
+                        CrossAxisAlignment.stretch,
                     children: [
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        mainAxisAlignment:
+                            MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text(
-                            'MI EMPRESA',
-                            style: TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: 1.0,
-                              color: Colors.black,
+                          const Expanded(
+                            child: Text(
+                              'MI EMPRESA',
+                              style: TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 1,
+                                color: Colors.black,
+                              ),
                             ),
                           ),
                           GestureDetector(
@@ -76,14 +157,20 @@ class MyCompanyScreen extends StatelessWidget {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) => EditCompanyScreen(userData: userData),
+                                  builder: (_) =>
+                                      EditCompanyScreen(
+                                    userData: userData,
+                                  ),
                                 ),
                               );
                             },
                             child: Container(
                               decoration: BoxDecoration(
-                                color: const Color(0xFFD4FF00),
-                                border: Border.all(color: Colors.black, width: 2.0),
+                                color: lime,
+                                border: Border.all(
+                                  color: Colors.black,
+                                  width: 2,
+                                ),
                                 boxShadow: const [
                                   BoxShadow(
                                     color: Colors.black,
@@ -92,7 +179,11 @@ class MyCompanyScreen extends StatelessWidget {
                                   ),
                                 ],
                               ),
-                              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                              padding:
+                                  const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 8,
+                              ),
                               child: const Text(
                                 'EDITAR',
                                 style: TextStyle(
@@ -105,9 +196,16 @@ class MyCompanyScreen extends StatelessWidget {
                           ),
                         ],
                       ),
+
                       const SizedBox(height: 16),
-                      Container(height: 2, color: Colors.black),
+
+                      Container(
+                        height: 2,
+                        color: Colors.black,
+                      ),
+
                       const SizedBox(height: 24),
+
                       _buildCard(
                         child: Column(
                           children: [
@@ -130,7 +228,7 @@ class MyCompanyScreen extends StatelessWidget {
                               style: const TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.w900,
-                                letterSpacing: 1.0,
+                                letterSpacing: 1,
                               ),
                               textAlign: TextAlign.center,
                             ),
@@ -147,10 +245,13 @@ class MyCompanyScreen extends StatelessWidget {
                           ],
                         ),
                       ),
+
                       const SizedBox(height: 24),
+
                       _buildCard(
                         child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          crossAxisAlignment:
+                              CrossAxisAlignment.stretch,
                           children: [
                             const Text(
                               'INFORMACIÓN',
@@ -160,20 +261,38 @@ class MyCompanyScreen extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(height: 8),
-                            Container(height: 2, color: Colors.black),
+                            Container(
+                              height: 2,
+                              color: Colors.black,
+                            ),
                             const SizedBox(height: 16),
-                            _buildInfoRow(Icons.language, website),
+                            _buildInfoRow(
+                              Icons.language,
+                              website,
+                            ),
                             const SizedBox(height: 12),
-                            _buildInfoRow(Icons.location_on_outlined, location),
+                            _buildInfoRow(
+                              Icons.location_on_outlined,
+                              location,
+                            ),
                             const SizedBox(height: 12),
-                            _buildInfoRow(Icons.people_outline, 'Añadir tamaño...'),
+                            _buildInfoRow(
+                              Icons.people_outline,
+                              _fieldValue(
+                                userData['size'],
+                                'Tamaño no especificado',
+                              ),
+                            ),
                           ],
                         ),
                       ),
+
                       const SizedBox(height: 24),
+
                       _buildCard(
                         child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          crossAxisAlignment:
+                              CrossAxisAlignment.stretch,
                           children: [
                             const Text(
                               'DESCRIPCIÓN',
@@ -183,7 +302,10 @@ class MyCompanyScreen extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(height: 8),
-                            Container(height: 2, color: Colors.black),
+                            Container(
+                              height: 2,
+                              color: Colors.black,
+                            ),
                             const SizedBox(height: 16),
                             Text(
                               description,
@@ -200,34 +322,81 @@ class MyCompanyScreen extends StatelessWidget {
                 );
               },
             ),
-      bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          border: Border(top: BorderSide(color: Colors.black, width: 2.0)),
+
+      bottomNavigationBar: _buildBottomNav(context),
+    );
+  }
+
+  String _fieldValue(
+    dynamic value,
+    String fallback,
+  ) {
+    final text = value?.toString().trim() ?? '';
+    return text.isEmpty ? fallback : text;
+  }
+
+  Widget _buildBottomNav(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        border: Border(
+          top: BorderSide(
+            color: Colors.black,
+            width: 2,
+          ),
         ),
-        child: BottomNavigationBar(
-          backgroundColor: const Color(0xFFF4F4F4),
-          type: BottomNavigationBarType.fixed,
-          selectedItemColor: Colors.black,
-          unselectedItemColor: Colors.grey[600],
-          selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 10, fontFamily: 'monospace'),
-          unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 10, fontFamily: 'monospace'),
-          elevation: 0,
-          items: const [
-            BottomNavigationBarItem(icon: Icon(Icons.grid_view), label: 'INICIO'),
-            BottomNavigationBarItem(icon: Icon(Icons.work_outline), label: 'EMPLEOS'),
-            BottomNavigationBarItem(icon: Icon(Icons.calendar_today_outlined), label: 'ENTREVISTAS'),
-            BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: 'PERFIL'),
-          ],
+      ),
+      child: BottomNavigationBar(
+        backgroundColor: background,
+        type: BottomNavigationBarType.fixed,
+        selectedItemColor: Colors.black,
+        unselectedItemColor: Colors.grey,
+        currentIndex: 3,
+        selectedLabelStyle: const TextStyle(
+          fontWeight: FontWeight.bold,
+          fontSize: 10,
+          fontFamily: 'monospace',
         ),
+        unselectedLabelStyle: const TextStyle(
+          fontWeight: FontWeight.bold,
+          fontSize: 10,
+          fontFamily: 'monospace',
+        ),
+        elevation: 0,
+        onTap: (index) {
+          _navigateTo(context, index);
+        },
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.grid_view),
+            label: 'INICIO',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.format_list_bulleted),
+            label: 'OFERTAS',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.people_alt_outlined),
+            label: 'CANDIDATOS',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.domain),
+            label: 'PERFIL',
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildCard({required Widget child}) {
+  Widget _buildCard({
+    required Widget child,
+  }) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border.all(color: Colors.black, width: 2.0),
+        border: Border.all(
+          color: Colors.black,
+          width: 2,
+        ),
         boxShadow: const [
           BoxShadow(
             color: Colors.black,
@@ -236,20 +405,29 @@ class MyCompanyScreen extends StatelessWidget {
           ),
         ],
       ),
-      padding: const EdgeInsets.all(20.0),
+      padding: const EdgeInsets.all(20),
       child: child,
     );
   }
 
-  Widget _buildInfoRow(IconData icon, String text) {
+  Widget _buildInfoRow(
+    IconData icon,
+    String text,
+  ) {
     return Row(
       children: [
-        Icon(icon, size: 20, color: Colors.grey[800]),
+        Icon(
+          icon,
+          size: 20,
+          color: Colors.grey[800],
+        ),
         const SizedBox(width: 12),
         Expanded(
           child: Text(
             text,
-            style: const TextStyle(fontSize: 14),
+            style: const TextStyle(
+              fontSize: 14,
+            ),
           ),
         ),
       ],
@@ -258,56 +436,112 @@ class MyCompanyScreen extends StatelessWidget {
 
   Widget _buildDrawer(BuildContext context) {
     return Drawer(
-      backgroundColor: const Color(0xFFF4F4F4),
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+      backgroundColor: background,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.zero,
+      ),
       child: SafeArea(
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          crossAxisAlignment:
+              CrossAxisAlignment.stretch,
           children: [
             Padding(
-              padding: const EdgeInsets.all(16.0),
+              padding: const EdgeInsets.all(16),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                mainAxisAlignment:
+                    MainAxisAlignment.spaceBetween,
                 children: [
                   const Text(
                     'JOB TRACKER',
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w900,
-                      letterSpacing: 1.0,
+                      letterSpacing: 1,
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close, color: Colors.black),
-                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(
+                      Icons.close,
+                      color: Colors.black,
+                    ),
+                    onPressed: () {
+                      Navigator.pop(context);
+                    },
                   ),
                 ],
               ),
             ),
-            Container(height: 2, color: Colors.black),
+
+            Container(
+              height: 2,
+              color: Colors.black,
+            ),
+
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.all(16.0),
+                padding: const EdgeInsets.all(16),
                 children: [
-                  _buildDrawerItem(Icons.domain, 'DIRECTORIO EMPRESAS'),
+                  _buildDrawerItem(
+                    Icons.grid_view,
+                    'PANEL PRINCIPAL',
+                    () {
+                      Navigator.pop(context);
+                      _navigateTo(context, 0);
+                    },
+                  ),
+
                   const SizedBox(height: 12),
-                  _buildDrawerItem(Icons.description_outlined, 'MIS DOCUMENTOS'),
+
+                  _buildDrawerItem(
+                    Icons.format_list_bulleted,
+                    'MIS OFERTAS',
+                    () {
+                      Navigator.pop(context);
+                      _navigateTo(context, 1);
+                    },
+                  ),
+
                   const SizedBox(height: 12),
-                  _buildDrawerItem(Icons.bar_chart, 'ESTADÍSTICAS'),
-                  const SizedBox(height: 24),
-                  Container(height: 2, color: Colors.black),
-                  const SizedBox(height: 24),
-                  _buildDrawerItem(Icons.domain, 'MI EMPRESA'),
+
+                  _buildDrawerItem(
+                    Icons.people_alt_outlined,
+                    'CANDIDATOS',
+                    () {
+                      Navigator.pop(context);
+                      _navigateTo(context, 2);
+                    },
+                  ),
+
                   const SizedBox(height: 12),
-                  _buildDrawerItem(Icons.format_list_bulleted, 'MIS OFERTAS'),
+
+                  _buildDrawerItem(
+                    Icons.domain,
+                    'MI EMPRESA',
+                    () {
+                      Navigator.pop(context);
+                    },
+                  ),
+
                   const SizedBox(height: 24),
+
+                  Container(
+                    height: 2,
+                    color: Colors.black,
+                  ),
+
+                  const SizedBox(height: 24),
+
                   GestureDetector(
                     onTap: () async {
                       await FirebaseAuth.instance.signOut();
+
                       if (context.mounted) {
                         Navigator.pushAndRemoveUntil(
                           context,
-                          MaterialPageRoute(builder: (context) => const LoginScreen()),
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                const LoginScreen(),
+                          ),
                           (route) => false,
                         );
                       }
@@ -315,7 +549,10 @@ class MyCompanyScreen extends StatelessWidget {
                     child: Container(
                       decoration: BoxDecoration(
                         color: const Color(0xFFFFD1D1),
-                        border: Border.all(color: Colors.black, width: 2.0),
+                        border: Border.all(
+                          color: Colors.black,
+                          width: 2,
+                        ),
                         boxShadow: const [
                           BoxShadow(
                             color: Colors.black,
@@ -324,17 +561,24 @@ class MyCompanyScreen extends StatelessWidget {
                           ),
                         ],
                       ),
-                      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
+                      padding:
+                          const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 16,
+                      ),
                       child: const Row(
                         children: [
-                          Icon(Icons.logout, color: Colors.red),
+                          Icon(
+                            Icons.logout,
+                            color: Colors.red,
+                          ),
                           SizedBox(width: 16),
                           Text(
                             'SALIR',
                             style: TextStyle(
                               fontWeight: FontWeight.w900,
                               color: Colors.red,
-                              letterSpacing: 1.0,
+                              letterSpacing: 1,
                             ),
                           ),
                         ],
@@ -350,33 +594,51 @@ class MyCompanyScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildDrawerItem(IconData icon, String title) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border.all(color: Colors.black, width: 2.0),
-        boxShadow: const [
-          BoxShadow(
+  Widget _buildDrawerItem(
+    IconData icon,
+    String title,
+    VoidCallback onTap,
+  ) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border.all(
             color: Colors.black,
-            offset: Offset(4, 4),
-            blurRadius: 0,
+            width: 2,
           ),
-        ],
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
-      child: Row(
-        children: [
-          Icon(icon, color: Colors.black),
-          const SizedBox(width: 16),
-          Text(
-            title,
-            style: const TextStyle(
-              fontWeight: FontWeight.w900,
-              letterSpacing: 1.0,
+          boxShadow: const [
+            BoxShadow(
+              color: Colors.black,
+              offset: Offset(4, 4),
+              blurRadius: 0,
             ),
-          ),
-        ],
+          ],
+        ),
+        padding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 16,
+        ),
+        child: Row(
+          children: [
+            Icon(
+              icon,
+              color: Colors.black,
+            ),
+            const SizedBox(width: 16),
+            Text(
+              title,
+              style: const TextStyle(
+                fontWeight: FontWeight.w900,
+                letterSpacing: 1,
+                color: Colors.black,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 }
+
