@@ -195,6 +195,8 @@ class MyOffersScreen extends StatelessWidget {
     final String salary =
         offer['salaryRange']?.toString() ?? 'No especificado';
 
+    final user = FirebaseAuth.instance.currentUser;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 24),
       padding: const EdgeInsets.all(16),
@@ -325,13 +327,19 @@ class MyOffersScreen extends StatelessWidget {
 
           StreamBuilder<
               QuerySnapshot<Map<String, dynamic>>>(
-            stream: FirebaseFirestore.instance
-                .collection('applications')
-                .where(
-                  'offerId',
-                  isEqualTo: offerId,
-                )
-                .snapshots(),
+            stream: user == null
+                ? null
+                : FirebaseFirestore.instance
+                    .collection('applications')
+                    .where(
+                      'offerId',
+                      isEqualTo: offerId,
+                    )
+                    .where(
+                      'companyId',
+                      isEqualTo: user.uid,
+                    )
+                    .snapshots(),
             builder: (context, snapshot) {
               if (snapshot.hasError) {
                 return const Text(
@@ -352,13 +360,7 @@ class MyOffersScreen extends StatelessWidget {
                 );
               }
 
-              final count = snapshot.data!.docs
-                  .where(
-                    (doc) =>
-                        doc.data()['companyId'] ==
-                        FirebaseAuth.instance.currentUser?.uid,
-                  )
-                  .length;
+              final count = snapshot.data!.docs.length;
 
               return Container(
                 padding: const EdgeInsets.symmetric(
@@ -385,7 +387,6 @@ class MyOffersScreen extends StatelessWidget {
 
           const SizedBox(height: 20),
 
-          // VER POSTULANTES DE ESTA OFERTA
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
@@ -419,7 +420,6 @@ class MyOffersScreen extends StatelessWidget {
 
           const SizedBox(height: 12),
 
-          // CERRAR O REABRIR OFERTA
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
@@ -674,3 +674,4 @@ class MyOffersScreen extends StatelessWidget {
     );
   }
 }
+

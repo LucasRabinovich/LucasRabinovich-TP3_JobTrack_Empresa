@@ -1,8 +1,11 @@
+import 'dart:io';
+import 'dart:typed_data';
 
-import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/services.dart';
+import 'package:flutter/material.dart';
+import 'package:open_filex/open_filex.dart';
+import 'package:path_provider/path_provider.dart';
 
 class CandidateDetailScreen extends StatefulWidget {
   final String applicationId;
@@ -30,6 +33,15 @@ class _CandidateDetailScreenState extends State<CandidateDetailScreen> {
   ];
 
   bool isSaving = false;
+  bool isOpeningCv = false;
+
+  void showMessage(String message) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
 
   Future<void> updateStatus(
     String companyId,
@@ -48,41 +60,33 @@ class _CandidateDetailScreenState extends State<CandidateDetailScreen> {
           .collection('applications')
           .doc(widget.applicationId);
 
-      await FirebaseFirestore.instance.runTransaction((transaction) async {
-        final applicationSnapshot =
-            await transaction.get(applicationRef);
+      await FirebaseFirestore.instance.runTransaction(
+        (transaction) async {
+          final snapshot =
+              await transaction.get(applicationRef);
 
-        if (!applicationSnapshot.exists) {
-          throw Exception('La postulación ya no existe.');
-        }
+          if (!snapshot.exists) {
+            throw Exception('La postulación ya no existe.');
+          }
 
-        final application = applicationSnapshot.data();
+          final application = snapshot.data();
 
-        if (application?['companyId'] != user.uid) {
-          throw Exception('No tenés permiso para modificar esta postulación.');
-        }
+          if (application?['companyId'] != user.uid) {
+            throw Exception(
+              'No tenés permiso para modificar esta postulación.',
+            );
+          }
 
-        transaction.update(applicationRef, {
-          'status': newStatus,
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
-      });
-
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Estado actualizado correctamente'),
-        ),
+          transaction.update(applicationRef, {
+            'status': newStatus,
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+        },
       );
+
+      showMessage('Estado actualizado correctamente');
     } catch (e) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('No se pudo actualizar el estado: $e'),
-        ),
-      );
+      showMessage('No se pudo actualizar el estado: $e');
     } finally {
       if (mounted) {
         setState(() => isSaving = false);
@@ -90,9 +94,134 @@ class _CandidateDetailScreenState extends State<CandidateDetailScreen> {
     }
   }
 
+  Future<void> openCv(
+    String documentId,
+    String candidateId,
+  ) async {
+    if (isOpeningCv) return;
+
+    final company = FirebaseAuth.instance.currentUser;
+
+    if (company == null) {
+      showMessage('Debés iniciar sesión.');
+      return;
+    }
+
+    setState(() => isOpeningCv = true);
+
+    try {
+      // Comprobar que la postulación pertenece
+      // a esta empresa y a este candidato.
+      final applicationSnapshot =
+          await FirebaseFirestore.instance
+              .collection('applications')
+              .doc(widget.applicationId)
+              .get();
+
+      final application = applicationSnapshot.data();
+
+      if (application == null ||
+          application['companyId'] != company.uid ||
+          application['userId'] != candidateId) {
+        throw Exception(
+          'No tenés permiso para consultar este CV.',
+        );
+      }
+
+      final documentRef = FirebaseFirestore.instance
+          .collection('documents')
+          .doc(documentId);
+
+      final documentSnapshot = await documentRef.get();
+      final document = documentSnapshot.data();
+
+      if (document == null ||
+          document['userId'] != candidateId ||
+          document['type'] != 'cv') {
+        throw Exception('CV no disponible.');
+      }
+
+      final chunkCount =
+          (document['chunkCount'] as num?)?.toInt() ?? 0;
+
+      if (chunkCount <= 0 || chunkCount > 18) {
+        throw Exception(
+          'El CV tiene una cantidad de fragmentos inválida.',
+        );
+      }
+
+      final builder = BytesBuilder(copy: false);
+
+      for (int i = 0; i < chunkCount; i++) {
+        final chunkId = i.toString().padLeft(4, '0');
+
+        final chunkSnapshot = await documentRef
+            .collection('chunks')
+            .doc(chunkId)
+            .get();
+
+        if (!chunkSnapshot.exists) {
+          throw Exception(
+            'Falta una parte del archivo PDF.',
+          );
+        }
+
+        final blob = chunkSnapshot.data()?['data'];
+
+        if (blob is! Blob) {
+          throw Exception(
+            'No se pudo recuperar el contenido del CV.',
+          );
+        }
+
+        builder.add(blob.bytes);
+      }
+
+      final bytes = builder.takeBytes();
+
+      final expectedSize =
+          (document['size'] as num?)?.toInt();
+
+      if (expectedSize == null ||
+          bytes.length != expectedSize) {
+        throw Exception(
+          'El PDF descargado está incompleto.',
+        );
+      }
+
+      final directory = await getTemporaryDirectory();
+
+      final pdfFile = File(
+        '${directory.path}/jobtrack_empresa_cv_$documentId.pdf',
+      );
+
+      await pdfFile.writeAsBytes(
+        bytes,
+        flush: true,
+      );
+
+      final result = await OpenFilex.open(pdfFile.path);
+
+      if (result.type != ResultType.done) {
+        throw Exception(
+          'No se pudo abrir el PDF: ${result.message}',
+        );
+      }
+    } catch (e) {
+      showMessage('Error al abrir CV: $e');
+    } finally {
+      if (mounted) {
+        setState(() => isOpeningCv = false);
+      }
+    }
+  }
+
   Widget sectionTitle(String title) {
     return Padding(
-      padding: const EdgeInsets.only(top: 22, bottom: 10),
+      padding: const EdgeInsets.only(
+        top: 22,
+        bottom: 10,
+      ),
       child: Text(
         title,
         style: const TextStyle(
@@ -104,7 +233,10 @@ class _CandidateDetailScreenState extends State<CandidateDetailScreen> {
     );
   }
 
-  Widget informationField(String label, dynamic value) {
+  Widget informationField(
+    String label,
+    dynamic value,
+  ) {
     final text = value?.toString().trim() ?? '';
 
     return Padding(
@@ -155,11 +287,14 @@ class _CandidateDetailScreenState extends State<CandidateDetailScreen> {
   Widget buildCandidateProfile(String candidateId) {
     if (candidateId.isEmpty) {
       return borderedPanel(
-        const Text('No se encontró el identificador del candidato.'),
+        const Text(
+          'No se encontró el identificador del candidato.',
+        ),
       );
     }
 
-    return FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+    return FutureBuilder<
+        DocumentSnapshot<Map<String, dynamic>>>(
       future: FirebaseFirestore.instance
           .collection('users')
           .doc(candidateId)
@@ -175,7 +310,9 @@ class _CandidateDetailScreenState extends State<CandidateDetailScreen> {
 
         if (!snapshot.hasData) {
           return const Center(
-            child: CircularProgressIndicator(color: Colors.black),
+            child: CircularProgressIndicator(
+              color: Colors.black,
+            ),
           );
         }
 
@@ -183,7 +320,9 @@ class _CandidateDetailScreenState extends State<CandidateDetailScreen> {
 
         if (profile == null) {
           return borderedPanel(
-            const Text('El candidato no tiene un perfil disponible.'),
+            const Text(
+              'El candidato no tiene un perfil disponible.',
+            ),
           );
         }
 
@@ -207,73 +346,205 @@ class _CandidateDetailScreenState extends State<CandidateDetailScreen> {
     );
   }
 
-  Widget buildCvSection(
-    Map<String, dynamic> application,
-  ) {
-    // Solo se acepta una referencia al CV asociada
-    // específicamente a esta postulación.
-    final cvUrl = application['cvUrl']?.toString().trim() ?? '';
-
-    if (cvUrl.isEmpty) {
+  Widget buildCvSection(String candidateId) {
+    if (candidateId.isEmpty) {
       return borderedPanel(
-        const Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(Icons.description_outlined, size: 32),
-            SizedBox(height: 12),
-            Text(
-              'CV NO DISPONIBLE',
-              style: TextStyle(fontWeight: FontWeight.w900),
-            ),
-            SizedBox(height: 6),
-            Text(
-              'El candidato todavía no adjuntó un CV '
-              'a esta postulación.',
-            ),
-          ],
-        ),
+        const Text('Candidato no identificado.'),
       );
     }
 
-    return borderedPanel(
-      Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Icon(Icons.picture_as_pdf_outlined, size: 32),
-          const SizedBox(height: 10),
-          const Text(
-            'CV ADJUNTO',
-            style: TextStyle(fontWeight: FontWeight.w900),
-          ),
-          const SizedBox(height: 12),
-          ElevatedButton.icon(
-            onPressed: () async {
-              await Clipboard.setData(
-                ClipboardData(text: cvUrl),
-              );
-
-              if (!mounted) return;
-
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text(
-                    'Enlace del CV copiado al portapapeles',
+    return StreamBuilder<
+        QuerySnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection('documents')
+          .where('userId', isEqualTo: candidateId)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return borderedPanel(
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'NO SE PUDIERON CONSULTAR LOS CV',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w900,
                   ),
                 ),
-              );
-            },
-            icon: const Icon(Icons.copy),
-            label: const Text('COPIAR ENLACE DEL CV'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: lime,
-              foregroundColor: Colors.black,
-              shape: const RoundedRectangleBorder(
-                borderRadius: BorderRadius.zero,
-              ),
+                const SizedBox(height: 8),
+                Text('${snapshot.error}'),
+              ],
             ),
+          );
+        }
+
+        if (!snapshot.hasData) {
+          return const Center(
+            child: CircularProgressIndicator(
+              color: Colors.black,
+            ),
+          );
+        }
+
+        final documents = snapshot.data!.docs
+            .where((doc) => doc.data()['type'] == 'cv')
+            .toList();
+
+        documents.sort((a, b) {
+          final aPrimary = a.data()['isPrimary'] == true;
+          final bPrimary = b.data()['isPrimary'] == true;
+
+          if (aPrimary != bPrimary) {
+            return aPrimary ? -1 : 1;
+          }
+
+          return 0;
+        });
+
+        if (documents.isEmpty) {
+          return borderedPanel(
+            const Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  Icons.description_outlined,
+                  size: 32,
+                ),
+                SizedBox(height: 12),
+                Text(
+                  'CV NO DISPONIBLE',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                SizedBox(height: 6),
+                Text(
+                  'El candidato todavía no cargó '
+                  'ningún CV.',
+                ),
+              ],
+            ),
+          );
+        }
+
+        return borderedPanel(
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'CURRÍCULUMS DEL CANDIDATO',
+                style: TextStyle(
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              for (final document in documents) ...[
+                Builder(
+                  builder: (context) {
+                    final data = document.data();
+
+                    final name =
+                        data['name']?.toString() ??
+                        'Currículum PDF';
+
+                    final isPrimary =
+                        data['isPrimary'] == true;
+
+                    final size =
+                        (data['size'] as num?)?.toInt() ?? 0;
+
+                    return Column(
+                      crossAxisAlignment:
+                          CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.picture_as_pdf,
+                              size: 30,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                name,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        const SizedBox(height: 6),
+
+                        Text(
+                          '${(size / 1024).toStringAsFixed(1)} KB',
+                          style: const TextStyle(
+                            color: Colors.black54,
+                          ),
+                        ),
+
+                        if (isPrimary) ...[
+                          const SizedBox(height: 10),
+                          Container(
+                            padding: const EdgeInsets.all(7),
+                            color: lime,
+                            child: const Text(
+                              'CV PRINCIPAL',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ),
+                        ],
+
+                        const SizedBox(height: 12),
+
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: isOpeningCv
+                                ? null
+                                : () => openCv(
+                                      document.id,
+                                      candidateId,
+                                    ),
+                            icon: const Icon(
+                              Icons.picture_as_pdf,
+                            ),
+                            label: Text(
+                              isOpeningCv
+                                  ? 'ABRIENDO CV...'
+                                  : 'VER CV',
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: lime,
+                              foregroundColor: Colors.black,
+                              padding: const EdgeInsets.all(14),
+                              shape:
+                                  const RoundedRectangleBorder(
+                                borderRadius: BorderRadius.zero,
+                                side: BorderSide(
+                                  color: Colors.black,
+                                  width: 2,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(height: 18),
+                      ],
+                    );
+                  },
+                ),
+              ],
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -281,9 +552,10 @@ class _CandidateDetailScreenState extends State<CandidateDetailScreen> {
     String currentStatus,
     String companyId,
   ) {
-    final normalizedStatus = statuses.contains(currentStatus)
-        ? currentStatus
-        : 'POSTULADO';
+    final normalizedStatus =
+        statuses.contains(currentStatus)
+            ? currentStatus
+            : 'POSTULADO';
 
     return borderedPanel(
       Column(
@@ -291,7 +563,9 @@ class _CandidateDetailScreenState extends State<CandidateDetailScreen> {
         children: [
           const Text(
             'ESTADO DEL PROCESO',
-            style: TextStyle(fontWeight: FontWeight.w900),
+            style: TextStyle(
+              fontWeight: FontWeight.w900,
+            ),
           ),
           const SizedBox(height: 12),
           DropdownButtonFormField<String>(
@@ -308,7 +582,7 @@ class _CandidateDetailScreenState extends State<CandidateDetailScreen> {
               ),
             ),
             items: statuses.map((status) {
-              return DropdownMenuItem(
+              return DropdownMenuItem<String>(
                 value: status,
                 child: Text(status),
               );
@@ -324,7 +598,9 @@ class _CandidateDetailScreenState extends State<CandidateDetailScreen> {
           ),
           if (isSaving) ...[
             const SizedBox(height: 12),
-            const LinearProgressIndicator(color: Colors.black),
+            const LinearProgressIndicator(
+              color: Colors.black,
+            ),
           ],
           const SizedBox(height: 12),
           const Text(
@@ -346,7 +622,9 @@ class _CandidateDetailScreenState extends State<CandidateDetailScreen> {
     if (user == null) {
       return const Scaffold(
         body: Center(
-          child: Text('Debés iniciar sesión para continuar'),
+          child: Text(
+            'Debés iniciar sesión para continuar',
+          ),
         ),
       );
     }
@@ -355,7 +633,9 @@ class _CandidateDetailScreenState extends State<CandidateDetailScreen> {
       backgroundColor: background,
       appBar: AppBar(
         backgroundColor: lime,
-        iconTheme: const IconThemeData(color: Colors.black),
+        iconTheme: const IconThemeData(
+          color: Colors.black,
+        ),
         title: const Text(
           'DETALLE DEL CANDIDATO',
           style: TextStyle(
@@ -365,7 +645,8 @@ class _CandidateDetailScreenState extends State<CandidateDetailScreen> {
           ),
         ),
       ),
-      body: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      body: StreamBuilder<
+          DocumentSnapshot<Map<String, dynamic>>>(
         stream: FirebaseFirestore.instance
             .collection('applications')
             .doc(widget.applicationId)
@@ -374,7 +655,8 @@ class _CandidateDetailScreenState extends State<CandidateDetailScreen> {
           if (snapshot.hasError) {
             return Center(
               child: Text(
-                'Error al cargar la postulación:\n${snapshot.error}',
+                'Error al cargar la postulación:\n'
+                '${snapshot.error}',
                 textAlign: TextAlign.center,
               ),
             );
@@ -382,7 +664,9 @@ class _CandidateDetailScreenState extends State<CandidateDetailScreen> {
 
           if (!snapshot.hasData) {
             return const Center(
-              child: CircularProgressIndicator(color: Colors.black),
+              child: CircularProgressIndicator(
+                color: Colors.black,
+              ),
             );
           }
 
@@ -409,12 +693,14 @@ class _CandidateDetailScreenState extends State<CandidateDetailScreen> {
               application['userId']?.toString() ?? '';
 
           final status =
-              application['status']?.toString() ?? 'POSTULADO';
+              application['status']?.toString() ??
+              'POSTULADO';
 
           return SingleChildScrollView(
             padding: const EdgeInsets.all(24),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+              crossAxisAlignment:
+                  CrossAxisAlignment.stretch,
               children: [
                 const Text(
                   'INFORMACIÓN DE LA POSTULACIÓN',
@@ -428,7 +714,8 @@ class _CandidateDetailScreenState extends State<CandidateDetailScreen> {
 
                 borderedPanel(
                   Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    crossAxisAlignment:
+                        CrossAxisAlignment.start,
                     children: [
                       informationField(
                         'PUESTO',
@@ -452,11 +739,14 @@ class _CandidateDetailScreenState extends State<CandidateDetailScreen> {
 
                 sectionTitle('CURRÍCULUM VITAE'),
 
-                buildCvSection(application),
+                buildCvSection(candidateId),
 
                 sectionTitle('GESTIONAR POSTULACIÓN'),
 
-                buildStatusSelector(status, companyId),
+                buildStatusSelector(
+                  status,
+                  companyId,
+                ),
 
                 const SizedBox(height: 24),
               ],

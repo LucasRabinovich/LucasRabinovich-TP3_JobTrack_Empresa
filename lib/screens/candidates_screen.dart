@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -36,8 +35,6 @@ class _CandidatesScreenState extends State<CandidatesScreen> {
   @override
   void initState() {
     super.initState();
-
-    // Si llegamos desde una oferta, la seleccionamos.
     selectedOfferId = widget.offerId;
   }
 
@@ -389,6 +386,10 @@ class _CandidatesScreenState extends State<CandidatesScreen> {
                         'offerId',
                         isEqualTo: currentOfferId,
                       )
+                      .where(
+                        'companyId',
+                        isEqualTo: user.uid,
+                      )
                       .snapshots(),
                   builder: (context, applicationsSnapshot) {
                     if (applicationsSnapshot.hasError) {
@@ -416,7 +417,6 @@ class _CandidatesScreenState extends State<CandidatesScreen> {
                         applicationsSnapshot.data!.docs.where((doc) {
                       final data = doc.data();
 
-                      // Solo postulaciones de esta empresa.
                       if (data['companyId'] != user.uid) {
                         return false;
                       }
