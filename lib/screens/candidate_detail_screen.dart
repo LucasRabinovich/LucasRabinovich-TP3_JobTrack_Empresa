@@ -86,7 +86,7 @@ class _CandidateDetailScreenState extends State<CandidateDetailScreen> {
     }
   }
 
-  Future<void> _showInterviewDialog(String candidateId, String company, String role) async {
+  Future<void> _showInterviewDialog(String candidateId, String fallbackCompany, String role) async {
     final dateController = TextEditingController();
     final linkController = TextEditingController();
     final notesController = TextEditingController();
@@ -220,9 +220,16 @@ class _CandidateDetailScreenState extends State<CandidateDetailScreen> {
                           }
                           setDialogState(() => isSubmitting = true);
                           try {
+                            
+                            final companyId = FirebaseAuth.instance.currentUser!.uid;
+                            final companyDoc = await FirebaseFirestore.instance.collection('users').doc(companyId).get();
+                            final realCompanyName = companyDoc.data()?['name']?.toString() ?? fallbackCompany;
+
+                            
                             await FirebaseFirestore.instance.collection('interviews').add({
                               'userId': candidateId,
-                              'company': company,
+                              'companyId': companyId,
+                              'company': realCompanyName,
                               'position': role,
                               'dateString': dateController.text.trim(),
                               'modality': modality,
