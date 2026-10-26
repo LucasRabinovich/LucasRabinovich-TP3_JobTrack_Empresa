@@ -220,12 +220,10 @@ class _CandidateDetailScreenState extends State<CandidateDetailScreen> {
                           }
                           setDialogState(() => isSubmitting = true);
                           try {
-                            
                             final companyId = FirebaseAuth.instance.currentUser!.uid;
                             final companyDoc = await FirebaseFirestore.instance.collection('users').doc(companyId).get();
                             final realCompanyName = companyDoc.data()?['name']?.toString() ?? fallbackCompany;
 
-                            
                             await FirebaseFirestore.instance.collection('interviews').add({
                               'userId': candidateId,
                               'companyId': companyId,
@@ -236,6 +234,11 @@ class _CandidateDetailScreenState extends State<CandidateDetailScreen> {
                               'link': linkController.text.trim(),
                               'notes': notesController.text.trim(),
                               'createdAt': FieldValue.serverTimestamp(),
+                            });
+                            
+                            await FirebaseFirestore.instance.collection('applications').doc(widget.applicationId).update({
+                              'status': 'ENTREVISTA',
+                              'updatedAt': FieldValue.serverTimestamp(),
                             });
                             
                             if (!dialogContext.mounted) return;
