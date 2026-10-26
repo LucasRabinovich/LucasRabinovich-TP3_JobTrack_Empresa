@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:job_track/screens/home_screen.dart';
-import 'package:job_track/screens/register_screen.dart';
+import 'package:job_track/screens/company_register_screen.dart';
 import 'package:job_track/screens/forgot_password_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -48,7 +48,6 @@ class _LoginScreenState extends State<LoginScreen> {
         password: password,
       );
 
-      // Verificación de seguridad: Asegurarse de que solo entren Empresas
       final userDoc = await FirebaseFirestore.instance
           .collection('users')
           .doc(userCredential.user!.uid)
@@ -270,7 +269,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   onTap: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => const RegisterScreen()),
+                      MaterialPageRoute(builder: (context) => const CompanyRegisterScreen()),
                     );
                   },
                   child: RichText(

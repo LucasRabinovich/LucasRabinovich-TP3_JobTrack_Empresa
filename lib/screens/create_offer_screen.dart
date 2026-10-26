@@ -77,6 +77,10 @@ class _CreateOfferScreenState extends State<CreateOfferScreen> {
     try {
       final String uid = FirebaseAuth.instance.currentUser!.uid;
 
+      
+      final userDoc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      final userData = userDoc.data() ?? {};
+
       final offerData = {
         'title': title,
         'modality': _selectedModality,
@@ -86,6 +90,9 @@ class _CreateOfferScreenState extends State<CreateOfferScreen> {
         'salaryRange': salary.isNotEmpty ? salary : 'No especificado',
         'description': description,
         'isActive': true,
+        
+        'logoUrl': userData['logoUrl'] ?? '', 
+        'companyName': userData['name'] ?? 'Empresa', 
       };
 
       if (widget.offerId == null) {
