@@ -1,3 +1,4 @@
+
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -17,7 +18,7 @@ class _CreateOfferScreenState extends State<CreateOfferScreen> {
   final TextEditingController _salaryController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
   final TextEditingController _locationController = TextEditingController();
-  
+
   String _selectedModality = 'Remoto';
   String _selectedContract = 'Full-time';
   String _selectedSeniority = 'Junior';
@@ -32,7 +33,13 @@ class _CreateOfferScreenState extends State<CreateOfferScreen> {
     super.initState();
     if (widget.existingOffer != null) {
       _titleController.text = widget.existingOffer!['title'] ?? '';
-      _salaryController.text = widget.existingOffer!['salaryRange'] ?? '';
+
+      // Evitar duplicar el signo $ al editar una oferta existente.
+      final existingSalary = widget.existingOffer!['salaryRange']?.toString() ?? '';
+      _salaryController.text = existingSalary == 'No especificado'
+          ? ''
+          : existingSalary.replaceFirst(RegExp(r'^\$\s*'), '');
+
       _descriptionController.text = widget.existingOffer!['description'] ?? '';
       _locationController.text = widget.existingOffer!['location'] ?? '';
       _selectedModality = widget.existingOffer!['modality'] ?? 'Remoto';
@@ -77,7 +84,6 @@ class _CreateOfferScreenState extends State<CreateOfferScreen> {
     try {
       final String uid = FirebaseAuth.instance.currentUser!.uid;
 
-      
       final userDoc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
       final userData = userDoc.data() ?? {};
 
@@ -87,12 +93,15 @@ class _CreateOfferScreenState extends State<CreateOfferScreen> {
         'contractType': _selectedContract,
         'seniority': _selectedSeniority,
         'location': _selectedModality == 'Remoto' ? 'No aplica' : location,
-        'salaryRange': salary.isNotEmpty ? salary : 'No especificado',
+
+        // Guardar el sueldo con el símbolo $.
+        'salaryRange': salary.isNotEmpty ? '\$ $salary' : 'No especificado',
+
         'description': description,
         'isActive': true,
-        
-        'logoUrl': userData['logoUrl'] ?? '', 
-        'companyName': userData['name'] ?? 'Empresa', 
+
+        'logoUrl': userData['logoUrl'] ?? '',
+        'companyName': userData['name'] ?? 'Empresa',
       };
 
       if (widget.offerId == null) {
@@ -162,7 +171,7 @@ class _CreateOfferScreenState extends State<CreateOfferScreen> {
               const SizedBox(height: 8),
               Container(height: 2, color: Colors.black),
               const SizedBox(height: 24),
-              
+
               const Text('TÍTULO DEL PUESTO *', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
               const SizedBox(height: 8),
               TextField(
@@ -236,13 +245,17 @@ class _CreateOfferScreenState extends State<CreateOfferScreen> {
               ),
               const SizedBox(height: 24),
 
-              const Text('RANGO SALARIAL (OPCIONAL)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
+              const Text('RANGO SALARIAL (USD - OPCIONAL)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
               const SizedBox(height: 8),
               TextField(
                 controller: _salaryController,
                 style: const TextStyle(fontFamily: 'monospace'),
                 decoration: const InputDecoration(
-                  hintText: 'Ej. \$2000 - \$3000 USD', hintStyle: TextStyle(color: Colors.grey),
+                  // El signo $ aparece automáticamente.
+                  prefixText: '\$ ',
+                  prefixStyle: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+                  hintText: 'Ej. 2000 - 3000',
+                  hintStyle: TextStyle(color: Colors.grey),
                   filled: true, fillColor: Colors.white,
                   enabledBorder: brutalistBorder, focusedBorder: brutalistBorder, contentPadding: EdgeInsets.all(16),
                 ),
