@@ -12,8 +12,10 @@ dependencies:
   firebase_core: ^4.15.0
   flutter:
     sdk: flutter
+  http: ^1.6.0
   open_filex: ^5.0.0
   path_provider: ^2.1.6
+  url_launcher: ^6.3.3
 
 dev_dependencies:
   flutter_test:
