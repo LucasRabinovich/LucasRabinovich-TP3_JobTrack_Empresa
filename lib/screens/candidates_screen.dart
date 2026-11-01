@@ -18,7 +18,7 @@ class CandidatesScreen extends StatefulWidget {
 
 class _CandidatesScreenState extends State<CandidatesScreen> {
   static const Color background = Color(0xFFF4F4F4);
-  static const Color lime = Color(0xFFD4FF00);
+  
 
   String? selectedOfferId;
   String selectedStatus = 'TODOS';
@@ -40,33 +40,24 @@ class _CandidatesScreenState extends State<CandidatesScreen> {
 
   Widget buildStatus(String status) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 10,
-        vertical: 6,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: status == 'RECHAZADO'
-            ? const Color(0xFFFFD1D1)
-            : lime,
-        border: Border.all(
-          color: Colors.black,
-          width: 1.5,
-        ),
+        color: status == 'RECHAZADO' ? const Color(0xFFFFD1D1) : Colors.black,
+        border: Border.all(color: Colors.black, width: 1.5),
       ),
       child: Text(
         status,
-        style: const TextStyle(
-          fontSize: 10,
+        style: TextStyle(
+          fontSize: 10, 
           fontWeight: FontWeight.w900,
+          color: status == 'RECHAZADO' ? Colors.black : Colors.white,
         ),
       ),
     );
   }
 
-  Widget buildCandidateCard(
-    QueryDocumentSnapshot<Map<String, dynamic>> application,
-  ) {
-    final data = application.data();
+  Widget buildCandidateCard(QueryDocumentSnapshot application) {
+    final data = application.data() as Map<String, dynamic>? ?? {};
 
     final candidateId = data['userId']?.toString() ?? '';
     final status = data['status']?.toString() ?? 'POSTULADO';
@@ -77,10 +68,7 @@ class _CandidatesScreenState extends State<CandidatesScreen> {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border.all(
-          color: Colors.black,
-          width: 2,
-        ),
+        border: Border.all(color: Colors.black, width: 2),
         boxShadow: const [
           BoxShadow(
             color: Colors.black,
@@ -93,77 +81,47 @@ class _CandidatesScreenState extends State<CandidatesScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (candidateId.isNotEmpty)
-            FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-              future: FirebaseFirestore.instance
-                  .collection('users')
-                  .doc(candidateId)
-                  .get(),
+            FutureBuilder<DocumentSnapshot>(
+              future: FirebaseFirestore.instance.collection('users').doc(candidateId).get(),
               builder: (context, snapshot) {
                 if (snapshot.hasError) {
                   return const Text(
                     'CANDIDATO',
-                    style: TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w900,
-                    ),
+                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900),
                   );
                 }
 
                 if (!snapshot.hasData) {
                   return const Text(
                     'CARGANDO CANDIDATO...',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontWeight: FontWeight.bold),
                   );
                 }
 
-                final profile = snapshot.data!.data();
-                final name =
-                    profile?['name']?.toString().trim() ?? '';
+                final profile = snapshot.data!.data() as Map<String, dynamic>?;
+                final name = profile?['name']?.toString().trim() ?? '';
 
                 return Text(
                   name.isEmpty ? 'CANDIDATO' : name.toUpperCase(),
-                  style: const TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w900,
-                  ),
+                  style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900),
                 );
               },
             )
           else
             const Text(
               'CANDIDATO SIN IDENTIFICAR',
-              style: TextStyle(
-                fontSize: 17,
-                fontWeight: FontWeight.w900,
-              ),
+              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900),
             ),
-
           const SizedBox(height: 10),
-
-          Text(
-            'PUESTO: $role',
-            style: const TextStyle(fontSize: 13),
-          ),
-
+          Text('PUESTO: $role', style: const TextStyle(fontSize: 13)),
           const SizedBox(height: 14),
-
           buildStatus(status),
-
           const SizedBox(height: 16),
-
           const Text(
             'POSTULACIÓN RECIBIDA',
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.bold,
-              color: Colors.black54,
-            ),
+            style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.black54),
           ),
-
           const SizedBox(height: 18),
-
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
@@ -177,24 +135,22 @@ class _CandidatesScreenState extends State<CandidatesScreen> {
                   ),
                 );
               },
-              icon: const Icon(Icons.person_search),
+              icon: const Icon(Icons.person_search, color: Colors.white),
               label: const Text(
                 'VER CANDIDATO',
                 style: TextStyle(
                   fontWeight: FontWeight.w900,
                   letterSpacing: 1,
+                  color: Colors.white,
                 ),
               ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: lime,
-                foregroundColor: Colors.black,
+                backgroundColor: Colors.black,
+                foregroundColor: Colors.white,
                 padding: const EdgeInsets.all(14),
                 shape: const RoundedRectangleBorder(
                   borderRadius: BorderRadius.zero,
-                  side: BorderSide(
-                    color: Colors.black,
-                    width: 2,
-                  ),
+                  side: BorderSide(color: Colors.black, width: 2),
                 ),
               ),
             ),
@@ -219,39 +175,26 @@ class _CandidatesScreenState extends State<CandidatesScreen> {
     return Scaffold(
       backgroundColor: background,
       appBar: AppBar(
-        backgroundColor: lime,
+        backgroundColor: Colors.black,
         automaticallyImplyLeading: true,
-        iconTheme: const IconThemeData(
-          color: Colors.black,
-        ),
+        iconTheme: const IconThemeData(color: Colors.white),
         title: const Text(
           'CANDIDATOS',
-          style: TextStyle(
-            color: Colors.black,
-            fontWeight: FontWeight.w900,
-            letterSpacing: 1,
-          ),
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, letterSpacing: 1),
         ),
       ),
-      body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-        stream: FirebaseFirestore.instance
-            .collection('job_offers')
-            .where('companyId', isEqualTo: user.uid)
-            .snapshots(),
+      body: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance.collection('job_offers').where('companyId', isEqualTo: user.uid).snapshots(),
         builder: (context, offersSnapshot) {
           if (offersSnapshot.hasError) {
             return Center(
-              child: Text(
-                'Error al cargar ofertas: ${offersSnapshot.error}',
-              ),
+              child: Text('Error al cargar ofertas: ${offersSnapshot.error}'),
             );
           }
 
           if (!offersSnapshot.hasData) {
             return const Center(
-              child: CircularProgressIndicator(
-                color: Colors.black,
-              ),
+              child: CircularProgressIndicator(color: Colors.black),
             );
           }
 
@@ -262,21 +205,15 @@ class _CandidatesScreenState extends State<CandidatesScreen> {
               child: Text(
                 'TODAVÍA NO TENÉS OFERTAS PUBLICADAS',
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontWeight: FontWeight.w900,
-                ),
+                style: TextStyle(fontWeight: FontWeight.w900),
               ),
             );
           }
 
-          final validOfferIds =
-              offers.map((offer) => offer.id).toSet();
-
-          final currentOfferId =
-              selectedOfferId != null &&
-                      validOfferIds.contains(selectedOfferId)
-                  ? selectedOfferId!
-                  : offers.first.id;
+          final validOfferIds = offers.map((offer) => offer.id).toSet();
+          final currentOfferId = selectedOfferId != null && validOfferIds.contains(selectedOfferId)
+              ? selectedOfferId!
+              : offers.first.id;
 
           return Column(
             children: [
@@ -287,21 +224,11 @@ class _CandidatesScreenState extends State<CandidatesScreen> {
                   children: [
                     const Text(
                       'POSTULACIONES RECIBIDAS',
-                      style: TextStyle(
-                        fontSize: 21,
-                        fontWeight: FontWeight.w900,
-                      ),
+                      style: TextStyle(fontSize: 21, fontWeight: FontWeight.w900),
                     ),
-
                     const SizedBox(height: 8),
-
-                    const Text(
-                      'Seleccioná una oferta para consultar '
-                      'los candidatos que se postularon.',
-                    ),
-
+                    const Text('Seleccioná una oferta para consultar los candidatos que se postularon.'),
                     const SizedBox(height: 20),
-
                     DropdownButtonFormField<String>(
                       key: ValueKey(currentOfferId),
                       initialValue: currentOfferId,
@@ -311,23 +238,16 @@ class _CandidatesScreenState extends State<CandidatesScreen> {
                         fillColor: Colors.white,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.zero,
-                          borderSide: BorderSide(
-                            color: Colors.black,
-                            width: 2,
-                          ),
+                          borderSide: BorderSide(color: Colors.black, width: 2),
                         ),
                       ),
                       items: offers.map((offer) {
-                        final title =
-                            offer.data()['title']?.toString() ??
-                                'Sin título';
+                        final data = offer.data() as Map<String, dynamic>? ?? {};
+                        final title = data['title']?.toString() ?? 'Sin título';
 
                         return DropdownMenuItem<String>(
                           value: offer.id,
-                          child: Text(
-                            title,
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                          child: Text(title, overflow: TextOverflow.ellipsis),
                         );
                       }).toList(),
                       onChanged: (value) {
@@ -337,30 +257,24 @@ class _CandidatesScreenState extends State<CandidatesScreen> {
                         });
                       },
                     ),
-
                     const SizedBox(height: 16),
-
                     SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
                       child: Row(
                         children: statuses.map((status) {
-                          final selected =
-                              selectedStatus == status;
-
+                          final selected = selectedStatus == status;
                           return Padding(
                             padding: const EdgeInsets.only(right: 8),
                             child: ChoiceChip(
                               label: Text(status),
                               selected: selected,
-                              selectedColor: lime,
+                              selectedColor: Colors.black,
                               backgroundColor: Colors.white,
-                              side: const BorderSide(
-                                color: Colors.black,
-                                width: 1.5,
-                              ),
-                              labelStyle: const TextStyle(
-                                fontSize: 10,
+                              side: const BorderSide(color: Colors.black, width: 1.5),
+                              labelStyle: TextStyle(
+                                fontSize: 10, 
                                 fontWeight: FontWeight.bold,
+                                color: selected ? Colors.white : Colors.black,
                               ),
                               onSelected: (_) {
                                 setState(() {
@@ -375,21 +289,13 @@ class _CandidatesScreenState extends State<CandidatesScreen> {
                   ],
                 ),
               ),
-
               Expanded(
-                child: StreamBuilder<
-                    QuerySnapshot<Map<String, dynamic>>>(
+                child: StreamBuilder<QuerySnapshot>(
                   key: ValueKey(currentOfferId),
                   stream: FirebaseFirestore.instance
                       .collection('applications')
-                      .where(
-                        'offerId',
-                        isEqualTo: currentOfferId,
-                      )
-                      .where(
-                        'companyId',
-                        isEqualTo: user.uid,
-                      )
+                      .where('offerId', isEqualTo: currentOfferId)
+                      .where('companyId', isEqualTo: user.uid)
                       .snapshots(),
                   builder: (context, applicationsSnapshot) {
                     if (applicationsSnapshot.hasError) {
@@ -397,8 +303,7 @@ class _CandidatesScreenState extends State<CandidatesScreen> {
                         child: Padding(
                           padding: const EdgeInsets.all(20),
                           child: Text(
-                            'No se pudieron cargar las postulaciones:\n'
-                            '${applicationsSnapshot.error}',
+                            'No se pudieron cargar las postulaciones:\n${applicationsSnapshot.error}',
                             textAlign: TextAlign.center,
                           ),
                         ),
@@ -407,22 +312,18 @@ class _CandidatesScreenState extends State<CandidatesScreen> {
 
                     if (!applicationsSnapshot.hasData) {
                       return const Center(
-                        child: CircularProgressIndicator(
-                          color: Colors.black,
-                        ),
+                        child: CircularProgressIndicator(color: Colors.black),
                       );
                     }
 
-                    final applications =
-                        applicationsSnapshot.data!.docs.where((doc) {
-                      final data = doc.data();
+                    final applications = applicationsSnapshot.data!.docs.where((doc) {
+                      final data = doc.data() as Map<String, dynamic>? ?? {};
 
                       if (data['companyId'] != user.uid) {
                         return false;
                       }
 
-                      return selectedStatus == 'TODOS' ||
-                          data['status'] == selectedStatus;
+                      return selectedStatus == 'TODOS' || data['status'] == selectedStatus;
                     }).toList();
 
                     if (applications.isEmpty) {
@@ -430,25 +331,16 @@ class _CandidatesScreenState extends State<CandidatesScreen> {
                         child: Text(
                           'NO HAY POSTULACIONES PARA ESTE FILTRO',
                           textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontWeight: FontWeight.w900,
-                          ),
+                          style: TextStyle(fontWeight: FontWeight.w900),
                         ),
                       );
                     }
 
                     return ListView.builder(
-                      padding: const EdgeInsets.fromLTRB(
-                        20,
-                        0,
-                        20,
-                        24,
-                      ),
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
                       itemCount: applications.length,
                       itemBuilder: (context, index) {
-                        return buildCandidateCard(
-                          applications[index],
-                        );
+                        return buildCandidateCard(applications[index]);
                       },
                     );
                   },

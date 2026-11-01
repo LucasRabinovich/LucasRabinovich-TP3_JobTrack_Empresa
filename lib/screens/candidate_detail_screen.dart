@@ -21,7 +21,6 @@ class CandidateDetailScreen extends StatefulWidget {
 
 class _CandidateDetailScreenState extends State<CandidateDetailScreen> {
   static const background = Color(0xFFF4F4F4);
-  static const lime = Color(0xFFD4FF00);
   static const supabaseUrl =
       'https://zdaldzotfyuivcrjcuzg.supabase.co';
 
@@ -451,19 +450,22 @@ class _CandidateDetailScreenState extends State<CandidateDetailScreen> {
                           height: 18,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
+                            color: Colors.white,
                           ),
                         )
                       : const Icon(
                           Icons.picture_as_pdf_outlined,
+                          color: Colors.white,
                         ),
                   label: Text(
                     isOpeningCv
                         ? 'ABRIENDO CV...'
                         : 'VER CV',
+                    style: const TextStyle(color: Colors.white),
                   ),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: lime,
-                    foregroundColor: Colors.black,
+                    backgroundColor: Colors.black,
+                    foregroundColor: Colors.white,
                     padding: const EdgeInsets.all(14),
                     shape:
                         const RoundedRectangleBorder(
@@ -567,14 +569,14 @@ class _CandidateDetailScreenState extends State<CandidateDetailScreen> {
     return Scaffold(
       backgroundColor: background,
       appBar: AppBar(
-        backgroundColor: lime,
+        backgroundColor: Colors.black,
         iconTheme: const IconThemeData(
-          color: Colors.black,
+          color: Colors.white,
         ),
         title: const Text(
           'DETALLE DEL CANDIDATO',
           style: TextStyle(
-            color: Colors.black,
+            color: Colors.white,
             fontWeight: FontWeight.w900,
             fontSize: 17,
           ),
@@ -636,7 +638,6 @@ class _CandidateDetailScreenState extends State<CandidateDetailScreen> {
               application['role']?.toString() ??
                   'PUESTO';
 
-          // Verificamos si ya hay una entrevista programada o está aceptado/rechazado
           final hasInterview = status != 'POSTULADO';
 
           return SingleChildScrollView(
@@ -688,7 +689,6 @@ class _CandidateDetailScreenState extends State<CandidateDetailScreen> {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
-                    // Si ya tiene entrevista, el botón se bloquea (onPressed en null)
                     onPressed: hasInterview
                         ? null
                         : () => _showInterviewDialog(
@@ -752,7 +752,6 @@ class _InterviewDialog extends StatefulWidget {
 
 class _InterviewDialogState extends State<_InterviewDialog> {
   static const background = Color(0xFFF4F4F4);
-  static const lime = Color(0xFFD4FF00);
 
   final dateController = TextEditingController();
   final linkController = TextEditingController();
@@ -823,7 +822,7 @@ class _InterviewDialogState extends State<_InterviewDialog> {
           data: ThemeData.light().copyWith(
             colorScheme: const ColorScheme.light(
               primary: Colors.black,
-              onPrimary: lime,
+              onPrimary: Colors.white,
               onSurface: Colors.black,
             ),
             textButtonTheme: TextButtonThemeData(
@@ -848,7 +847,7 @@ class _InterviewDialogState extends State<_InterviewDialog> {
           data: ThemeData.light().copyWith(
             colorScheme: const ColorScheme.light(
               primary: Colors.black,
-              onPrimary: lime,
+              onPrimary: Colors.white,
               onSurface: Colors.black,
             ),
             textButtonTheme: TextButtonThemeData(
@@ -1043,8 +1042,8 @@ class _InterviewDialogState extends State<_InterviewDialog> {
         ),
         ElevatedButton(
           style: ElevatedButton.styleFrom(
-            backgroundColor: lime,
-            foregroundColor: Colors.black,
+            backgroundColor: Colors.black,
+            foregroundColor: Colors.white,
             shape: const RoundedRectangleBorder(
               borderRadius: BorderRadius.zero,
               side: BorderSide(
