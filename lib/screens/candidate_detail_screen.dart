@@ -636,6 +636,9 @@ class _CandidateDetailScreenState extends State<CandidateDetailScreen> {
               application['role']?.toString() ??
                   'PUESTO';
 
+          // Verificamos si ya hay una entrevista programada o está aceptado/rechazado
+          final hasInterview = status != 'POSTULADO';
+
           return SingleChildScrollView(
             padding: const EdgeInsets.all(24),
             child: Column(
@@ -685,29 +688,31 @@ class _CandidateDetailScreenState extends State<CandidateDetailScreen> {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
-                    onPressed: () =>
-                        _showInterviewDialog(
-                      candidateId,
-                      companyName,
-                      roleName,
-                    ),
-                    icon: const Icon(
+                    // Si ya tiene entrevista, el botón se bloquea (onPressed en null)
+                    onPressed: hasInterview
+                        ? null
+                        : () => _showInterviewDialog(
+                              candidateId,
+                              companyName,
+                              roleName,
+                            ),
+                    icon: Icon(
                       Icons.calendar_month,
-                      color: Colors.white,
+                      color: hasInterview ? Colors.black54 : Colors.white,
                     ),
-                    label: const Text(
-                      'PROGRAMAR ENTREVISTA',
+                    label: Text(
+                      hasInterview ? 'ENTREVISTA YA PROGRAMADA' : 'PROGRAMAR ENTREVISTA',
                       style: TextStyle(
                         fontWeight: FontWeight.w900,
-                        color: Colors.white,
+                        color: hasInterview ? Colors.black54 : Colors.white,
                         letterSpacing: 1,
                       ),
                     ),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.black,
+                      backgroundColor: hasInterview ? Colors.grey.shade400 : Colors.black,
+                      disabledBackgroundColor: Colors.grey.shade300,
                       padding: const EdgeInsets.all(18),
-                      shape:
-                          const RoundedRectangleBorder(
+                      shape: const RoundedRectangleBorder(
                         borderRadius: BorderRadius.zero,
                         side: BorderSide(
                           color: Colors.black,
