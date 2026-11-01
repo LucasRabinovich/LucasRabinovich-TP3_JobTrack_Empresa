@@ -1,4 +1,3 @@
-
 import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -264,8 +263,7 @@ class _CandidateDetailScreenState extends State<CandidateDetailScreen> {
       );
     }
 
-    return FutureBuilder<
-        DocumentSnapshot<Map<String, dynamic>>>(
+    return FutureBuilder<DocumentSnapshot>(
       future: FirebaseFirestore.instance
           .collection('users')
           .doc(candidateId)
@@ -287,7 +285,7 @@ class _CandidateDetailScreenState extends State<CandidateDetailScreen> {
           );
         }
 
-        final profile = snapshot.data!.data();
+        final profile = snapshot.data!.data() as Map<String, dynamic>?;
 
         if (profile == null) {
           return borderedPanel(
@@ -369,8 +367,7 @@ class _CandidateDetailScreenState extends State<CandidateDetailScreen> {
       );
     }
 
-    return FutureBuilder<
-        DocumentSnapshot<Map<String, dynamic>>>(
+    return FutureBuilder<DocumentSnapshot>(
       future: FirebaseFirestore.instance
           .collection('documents')
           .doc(cvDocumentId)
@@ -392,7 +389,7 @@ class _CandidateDetailScreenState extends State<CandidateDetailScreen> {
           );
         }
 
-        final document = snapshot.data!.data();
+        final document = snapshot.data!.data() as Map<String, dynamic>?;
 
         if (document == null ||
             document['userId'] != candidateId ||
@@ -583,8 +580,7 @@ class _CandidateDetailScreenState extends State<CandidateDetailScreen> {
           ),
         ),
       ),
-      body: StreamBuilder<
-          DocumentSnapshot<Map<String, dynamic>>>(
+      body: StreamBuilder<DocumentSnapshot>(
         stream: FirebaseFirestore.instance
             .collection('applications')
             .doc(widget.applicationId)
@@ -607,7 +603,7 @@ class _CandidateDetailScreenState extends State<CandidateDetailScreen> {
             );
           }
 
-          final application = snapshot.data!.data();
+          final application = snapshot.data!.data() as Map<String, dynamic>?;
 
           if (application == null) {
             return const Center(
@@ -731,8 +727,6 @@ class _CandidateDetailScreenState extends State<CandidateDetailScreen> {
   }
 }
 
-// Formulario independiente para administrar correctamente
-// el ciclo de vida de los TextEditingController.
 class _InterviewDialog extends StatefulWidget {
   final String applicationId;
   final String candidateId;
@@ -811,6 +805,68 @@ class _InterviewDialogState extends State<_InterviewDialog> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message)),
     );
+  }
+
+  Future<void> _pickDateTime() async {
+    final DateTime? date = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime.now(),
+      lastDate: DateTime(2100),
+      builder: (context, child) {
+        return Theme(
+          data: ThemeData.light().copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Colors.black,
+              onPrimary: lime,
+              onSurface: Colors.black,
+            ),
+            textButtonTheme: TextButtonThemeData(
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.black,
+              ),
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (date == null) return;
+    if (!mounted) return;
+
+    final TimeOfDay? time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.now(),
+      builder: (context, child) {
+        return Theme(
+          data: ThemeData.light().copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Colors.black,
+              onPrimary: lime,
+              onSurface: Colors.black,
+            ),
+            textButtonTheme: TextButtonThemeData(
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.black,
+              ),
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (time == null) return;
+
+    setState(() {
+      final day = date.day.toString().padLeft(2, '0');
+      final month = date.month.toString().padLeft(2, '0');
+      final hour = time.hour.toString().padLeft(2, '0');
+      final minute = time.minute.toString().padLeft(2, '0');
+
+      dateController.text = "$day/$month - $hour:$minute";
+    });
   }
 
   Future<void> submitInterview() async {
@@ -895,12 +951,14 @@ class _InterviewDialogState extends State<_InterviewDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            fieldLabel(
-              'FECHA Y HORA (Ej: 25/10 - 14:30)',
-            ),
+            fieldLabel('FECHA Y HORA'),
             TextField(
               controller: dateController,
-              decoration: fieldDecoration(),
+              readOnly: true,
+              onTap: _pickDateTime,
+              decoration: fieldDecoration(hint: 'Tocar para elegir').copyWith(
+                suffixIcon: const Icon(Icons.calendar_month, color: Colors.black),
+              ),
             ),
             const SizedBox(height: 15),
             fieldLabel('MODALIDAD'),
@@ -1005,6 +1063,3 @@ class _InterviewDialogState extends State<_InterviewDialog> {
     );
   }
 }
-
-
-
