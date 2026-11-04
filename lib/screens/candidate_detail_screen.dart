@@ -1,3 +1,4 @@
+
 import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -23,13 +24,6 @@ class _CandidateDetailScreenState extends State<CandidateDetailScreen> {
   static const background = Color(0xFFF4F4F4);
   static const supabaseUrl =
       'https://zdaldzotfyuivcrjcuzg.supabase.co';
-
-  static const statuses = [
-    'POSTULADO',
-    'ENTREVISTA',
-    'ACEPTADO',
-    'RECHAZADO',
-  ];
 
   bool isSaving = false;
   bool isOpeningCv = false;
@@ -121,17 +115,65 @@ class _CandidateDetailScreenState extends State<CandidateDetailScreen> {
     }
   }
 
-  Future<void> updateStatus(
-    String companyId,
-    String newStatus,
-  ) async {
+  Future<void> rejectCandidate(String companyId) async {
+    if (isSaving) return;
+
     final user = FirebaseAuth.instance.currentUser;
 
-    if (user == null ||
-        user.uid != companyId ||
-        isSaving) {
-      return;
-    }
+    if (user == null || user.uid != companyId) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: background,
+        shape: const RoundedRectangleBorder(
+          side: BorderSide(
+            color: Colors.black,
+            width: 2,
+          ),
+          borderRadius: BorderRadius.zero,
+        ),
+        title: const Text(
+          'RECHAZAR POSTULANTE',
+          style: TextStyle(
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        content: const Text(
+          '¿Confirmás que querés rechazar a este postulante? '
+          'La decisión será definitiva.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text(
+              'CANCELAR',
+              style: TextStyle(color: Colors.black),
+            ),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFFFA6A6),
+              foregroundColor: Colors.black,
+              shape: const RoundedRectangleBorder(
+                borderRadius: BorderRadius.zero,
+                side: BorderSide(
+                  color: Colors.black,
+                  width: 2,
+                ),
+              ),
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text(
+              'RECHAZAR',
+              style: TextStyle(fontWeight: FontWeight.w900),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
 
     setState(() => isSaving = true);
 
@@ -148,22 +190,30 @@ class _CandidateDetailScreenState extends State<CandidateDetailScreen> {
             throw Exception('La postulación ya no existe.');
           }
 
-          if (snapshot.data()?['companyId'] != user.uid) {
+          final data = snapshot.data()!;
+
+          if (data['companyId'] != user.uid) {
             throw Exception(
               'No tenés permiso para modificar esta postulación.',
             );
           }
 
+          if (data['status'] != 'POSTULADO') {
+            throw Exception(
+              'Solo se puede rechazar directamente una postulación pendiente.',
+            );
+          }
+
           transaction.update(ref, {
-            'status': newStatus,
+            'status': 'RECHAZADO',
             'updatedAt': FieldValue.serverTimestamp(),
           });
         },
       );
 
-      showMessage('Estado actualizado correctamente');
+      showMessage('POSTULANTE RECHAZADO CORRECTAMENTE');
     } catch (e) {
-      showMessage('No se pudo actualizar el estado: $e');
+      showMessage('No se pudo rechazar al postulante: $e');
     } finally {
       if (mounted) {
         setState(() => isSaving = false);
@@ -284,7 +334,8 @@ class _CandidateDetailScreenState extends State<CandidateDetailScreen> {
           );
         }
 
-        final profile = snapshot.data!.data() as Map<String, dynamic>?;
+        final profile =
+            snapshot.data!.data() as Map<String, dynamic>?;
 
         if (profile == null) {
           return borderedPanel(
@@ -388,7 +439,8 @@ class _CandidateDetailScreenState extends State<CandidateDetailScreen> {
           );
         }
 
-        final document = snapshot.data!.data() as Map<String, dynamic>?;
+        final document =
+            snapshot.data!.data() as Map<String, dynamic>?;
 
         if (document == null ||
             document['userId'] != candidateId ||
@@ -461,7 +513,9 @@ class _CandidateDetailScreenState extends State<CandidateDetailScreen> {
                     isOpeningCv
                         ? 'ABRIENDO CV...'
                         : 'VER CV',
-                    style: const TextStyle(color: Colors.white),
+                    style: const TextStyle(
+                      color: Colors.white,
+                    ),
                   ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.black,
@@ -485,70 +539,143 @@ class _CandidateDetailScreenState extends State<CandidateDetailScreen> {
     );
   }
 
-  Widget buildStatusSelector(
-    String currentStatus,
+  Widget buildProcessActions(
+    String status,
     String companyId,
+    String candidateId,
+    String companyName,
+    String roleName,
   ) {
-    final normalizedStatus =
-        statuses.contains(currentStatus)
-            ? currentStatus
-            : 'POSTULADO';
-
-    return borderedPanel(
-      Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const Text(
-            'ESTADO DEL PROCESO',
-            style: TextStyle(
-              fontWeight: FontWeight.w900,
+    if (status == 'ENTREVISTA') {
+      return borderedPanel(
+        const Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'ENTREVISTA PROGRAMADA',
+              style: TextStyle(
+                fontWeight: FontWeight.w900,
+              ),
             ),
-          ),
-          const SizedBox(height: 12),
-          DropdownButtonFormField<String>(
-            key: ValueKey(normalizedStatus),
-            initialValue: normalizedStatus,
-            isExpanded: true,
-            decoration: const InputDecoration(
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.zero,
-                borderSide: BorderSide(
+            SizedBox(height: 10),
+            Text(
+              'La entrevista ya fue programada. '
+              'Podés aceptar o rechazar al postulante '
+              'desde la sección MIS ENTREVISTAS.',
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (status == 'ACEPTADO' || status == 'RECHAZADO') {
+      return borderedPanel(
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'RESULTADO DEL PROCESO',
+              style: TextStyle(
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: status == 'ACEPTADO'
+                    ? const Color(0xFFD4FF00)
+                    : const Color(0xFFFFA6A6),
+                border: Border.all(
                   color: Colors.black,
                   width: 2,
                 ),
               ),
-            ),
-            items: statuses.map((status) {
-              return DropdownMenuItem(
-                value: status,
-                child: Text(status),
-              );
-            }).toList(),
-            onChanged: isSaving
-                ? null
-                : (value) {
-                    if (value != null &&
-                        value != normalizedStatus) {
-                      updateStatus(companyId, value);
-                    }
-                  },
-          ),
-          if (isSaving) ...[
-            const SizedBox(height: 12),
-            const LinearProgressIndicator(
-              color: Colors.black,
+              child: Text(
+                'POSTULANTE $status',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
             ),
           ],
-          const SizedBox(height: 12),
-          const Text(
-            'Los cambios se sincronizan con la App Candidato.',
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        ElevatedButton.icon(
+          onPressed: isSaving
+              ? null
+              : () => _showInterviewDialog(
+                    candidateId,
+                    companyName,
+                    roleName,
+                  ),
+          icon: const Icon(
+            Icons.calendar_month,
+            color: Colors.white,
+          ),
+          label: const Text(
+            'PROGRAMAR ENTREVISTA',
             style: TextStyle(
-              fontSize: 12,
-              color: Colors.black54,
+              fontWeight: FontWeight.w900,
+              color: Colors.white,
+              letterSpacing: 1,
             ),
           ),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.black,
+            padding: const EdgeInsets.all(18),
+            shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.zero,
+              side: BorderSide(
+                color: Colors.black,
+                width: 2,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        ElevatedButton.icon(
+          onPressed: isSaving
+              ? null
+              : () => rejectCandidate(companyId),
+          icon: const Icon(
+            Icons.cancel_outlined,
+            color: Colors.black,
+          ),
+          label: const Text(
+            'RECHAZAR POSTULANTE',
+            style: TextStyle(
+              fontWeight: FontWeight.w900,
+              color: Colors.black,
+              letterSpacing: 1,
+            ),
+          ),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFFFFA6A6),
+            padding: const EdgeInsets.all(18),
+            shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.zero,
+              side: BorderSide(
+                color: Colors.black,
+                width: 2,
+              ),
+            ),
+          ),
+        ),
+        if (isSaving) ...[
+          const SizedBox(height: 12),
+          const LinearProgressIndicator(
+            color: Colors.black,
+          ),
         ],
-      ),
+      ],
     );
   }
 
@@ -605,7 +732,8 @@ class _CandidateDetailScreenState extends State<CandidateDetailScreen> {
             );
           }
 
-          final application = snapshot.data!.data() as Map<String, dynamic>?;
+          final application =
+              snapshot.data!.data() as Map<String, dynamic>?;
 
           if (application == null) {
             return const Center(
@@ -637,8 +765,6 @@ class _CandidateDetailScreenState extends State<CandidateDetailScreen> {
           final roleName =
               application['role']?.toString() ??
                   'PUESTO';
-
-          final hasInterview = status != 'POSTULADO';
 
           return SingleChildScrollView(
             padding: const EdgeInsets.all(24),
@@ -681,46 +807,12 @@ class _CandidateDetailScreenState extends State<CandidateDetailScreen> {
                 sectionTitle('CURRÍCULUM VITAE'),
                 buildCvSection(application),
                 sectionTitle('GESTIONAR POSTULACIÓN'),
-                buildStatusSelector(
+                buildProcessActions(
                   status,
                   companyId,
-                ),
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: hasInterview
-                        ? null
-                        : () => _showInterviewDialog(
-                              candidateId,
-                              companyName,
-                              roleName,
-                            ),
-                    icon: Icon(
-                      Icons.calendar_month,
-                      color: hasInterview ? Colors.black54 : Colors.white,
-                    ),
-                    label: Text(
-                      hasInterview ? 'ENTREVISTA YA PROGRAMADA' : 'PROGRAMAR ENTREVISTA',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w900,
-                        color: hasInterview ? Colors.black54 : Colors.white,
-                        letterSpacing: 1,
-                      ),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: hasInterview ? Colors.grey.shade400 : Colors.black,
-                      disabledBackgroundColor: Colors.grey.shade300,
-                      padding: const EdgeInsets.all(18),
-                      shape: const RoundedRectangleBorder(
-                        borderRadius: BorderRadius.zero,
-                        side: BorderSide(
-                          color: Colors.black,
-                          width: 2,
-                        ),
-                      ),
-                    ),
-                  ),
+                  candidateId,
+                  companyName,
+                  roleName,
                 ),
                 const SizedBox(height: 24),
               ],
@@ -836,8 +928,7 @@ class _InterviewDialogState extends State<_InterviewDialog> {
       },
     );
 
-    if (date == null) return;
-    if (!mounted) return;
+    if (date == null || !mounted) return;
 
     final TimeOfDay? time = await showTimePicker(
       context: context,
@@ -861,7 +952,7 @@ class _InterviewDialogState extends State<_InterviewDialog> {
       },
     );
 
-    if (time == null) return;
+    if (time == null || !mounted) return;
 
     setState(() {
       final day = date.day.toString().padLeft(2, '0');
@@ -890,7 +981,12 @@ class _InterviewDialogState extends State<_InterviewDialog> {
         throw Exception('Sesión no disponible.');
       }
 
-      final companyDoc = await FirebaseFirestore.instance
+      final db = FirebaseFirestore.instance;
+      final applicationRef = db
+          .collection('applications')
+          .doc(widget.applicationId);
+
+      final companyDoc = await db
           .collection('users')
           .doc(user.uid)
           .get();
@@ -899,26 +995,48 @@ class _InterviewDialogState extends State<_InterviewDialog> {
           companyDoc.data()?['name']?.toString() ??
               widget.fallbackCompany;
 
-      await FirebaseFirestore.instance
-          .collection('interviews')
-          .add({
-        'userId': widget.candidateId,
-        'companyId': user.uid,
-        'company': companyName,
-        'position': widget.role,
-        'dateString': dateController.text.trim(),
-        'modality': modality,
-        'link': linkController.text.trim(),
-        'notes': notesController.text.trim(),
-        'createdAt': FieldValue.serverTimestamp(),
-      });
+      final interviewRef = db.collection('interviews').doc();
 
-      await FirebaseFirestore.instance
-          .collection('applications')
-          .doc(widget.applicationId)
-          .update({
-        'status': 'ENTREVISTA',
-        'updatedAt': FieldValue.serverTimestamp(),
+      await db.runTransaction((transaction) async {
+        final application = await transaction.get(applicationRef);
+
+        if (!application.exists) {
+          throw Exception('La postulación ya no existe.');
+        }
+
+        final data = application.data()!;
+
+        if (data['companyId'] != user.uid ||
+            data['userId'] != widget.candidateId ||
+            data['role']?.toString() != widget.role) {
+          throw Exception(
+            'La postulación no corresponde a esta empresa o candidato.',
+          );
+        }
+
+        if (data['status'] != 'POSTULADO') {
+          throw Exception(
+            'Esta postulación ya no permite programar una entrevista.',
+          );
+        }
+
+        transaction.set(interviewRef, {
+          'applicationId': widget.applicationId,
+          'userId': widget.candidateId,
+          'companyId': user.uid,
+          'company': companyName,
+          'position': widget.role,
+          'dateString': dateController.text.trim(),
+          'modality': modality,
+          'link': linkController.text.trim(),
+          'notes': notesController.text.trim(),
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+
+        transaction.update(applicationRef, {
+          'status': 'ENTREVISTA',
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
       });
 
       if (!mounted) return;
@@ -959,9 +1077,14 @@ class _InterviewDialogState extends State<_InterviewDialog> {
             TextField(
               controller: dateController,
               readOnly: true,
-              onTap: _pickDateTime,
-              decoration: fieldDecoration(hint: 'Tocar para elegir').copyWith(
-                suffixIcon: const Icon(Icons.calendar_month, color: Colors.black),
+              onTap: isSubmitting ? null : _pickDateTime,
+              decoration: fieldDecoration(
+                hint: 'Tocar para elegir',
+              ).copyWith(
+                suffixIcon: const Icon(
+                  Icons.calendar_month,
+                  color: Colors.black,
+                ),
               ),
             ),
             const SizedBox(height: 15),
@@ -1010,6 +1133,7 @@ class _InterviewDialogState extends State<_InterviewDialog> {
             ),
             TextField(
               controller: linkController,
+              enabled: !isSubmitting,
               decoration: fieldDecoration(),
             ),
             const SizedBox(height: 15),
@@ -1018,6 +1142,7 @@ class _InterviewDialogState extends State<_InterviewDialog> {
             ),
             TextField(
               controller: notesController,
+              enabled: !isSubmitting,
               maxLines: 2,
               decoration: fieldDecoration(
                 hint:

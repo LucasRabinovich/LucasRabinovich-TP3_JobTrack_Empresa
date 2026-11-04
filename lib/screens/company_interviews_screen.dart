@@ -13,6 +13,8 @@ class _CompanyInterviewsScreenState extends State<CompanyInterviewsScreen> {
   static const Color background = Color(0xFFF4F4F4);
   static const Color lime = Color(0xFFD4FF00);
 
+  String? savingDecisionId;
+
   BoxDecoration _brutalBox() {
     return BoxDecoration(
       color: Colors.white,
@@ -25,10 +27,10 @@ class _CompanyInterviewsScreenState extends State<CompanyInterviewsScreen> {
     try {
       final parts = dateStr.split('-');
       if (parts.length != 2) return DateTime(2099);
-      
+
       final dateParts = parts[0].trim().split('/');
       final timeParts = parts[1].trim().split(':');
-      
+
       if (dateParts.length != 2 || timeParts.length != 2) return DateTime(2099);
 
       final day = int.parse(dateParts[0]);
@@ -47,21 +49,175 @@ class _CompanyInterviewsScreenState extends State<CompanyInterviewsScreen> {
     await FirebaseFirestore.instance.collection('interviews').doc(docId).delete();
   }
 
-  Future<void> _updateAttendance(String docId, String status) async {
-    await FirebaseFirestore.instance.collection('interviews').doc(docId).update({
-      'attendanceStatus': status,
-    });
+  Future<void> _decideCandidate(
+    String interviewId,
+    String decision,
+  ) async {
+    if (savingDecisionId != null) return;
+
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: background,
+        shape: const RoundedRectangleBorder(
+          side: BorderSide(color: Colors.black, width: 2),
+          borderRadius: BorderRadius.zero,
+        ),
+        title: Text(
+          decision == 'ACEPTADO'
+              ? 'ACEPTAR POSTULANTE'
+              : 'RECHAZAR POSTULANTE',
+          style: const TextStyle(fontWeight: FontWeight.w900),
+        ),
+        content: Text(
+          '¿Confirmás que querés ${decision == 'ACEPTADO' ? 'aceptar' : 'rechazar'} al postulante? Esta decisión será definitiva.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text(
+              'CANCELAR',
+              style: TextStyle(color: Colors.black),
+            ),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: decision == 'ACEPTADO'
+                  ? lime
+                  : const Color(0xFFFFA6A6),
+              foregroundColor: Colors.black,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text(
+              'CONFIRMAR',
+              style: TextStyle(fontWeight: FontWeight.w900),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    setState(() => savingDecisionId = interviewId);
+
+    try {
+      final db = FirebaseFirestore.instance;
+      final interviewRef = db.collection('interviews').doc(interviewId);
+      final interviewDoc = await interviewRef.get();
+
+      if (!interviewDoc.exists ||
+          interviewDoc.data()?['companyId'] != user.uid) {
+        throw Exception('Entrevista no disponible.');
+      }
+
+      final interview = interviewDoc.data()!;
+      final candidateId = interview['userId']?.toString() ?? '';
+      final position = interview['position']?.toString() ?? '';
+      final applicationId = interview['applicationId']?.toString() ?? '';
+
+      if (candidateId.isEmpty || position.isEmpty) {
+        throw Exception('Faltan datos para identificar la postulación.');
+      }
+
+      DocumentReference<Map<String, dynamic>> applicationRef;
+
+      if (applicationId.isNotEmpty) {
+        applicationRef = db.collection('applications').doc(applicationId);
+      } else {
+        final query = await db
+            .collection('applications')
+            .where('companyId', isEqualTo: user.uid)
+            .where('userId', isEqualTo: candidateId)
+            .get();
+
+        final matches = query.docs.where(
+          (doc) => doc.data()['role']?.toString() == position,
+        ).toList();
+
+        if (matches.length != 1) {
+          throw Exception(
+            matches.isEmpty
+                ? 'No se encontró la postulación.'
+                : 'Hay varias postulaciones para este puesto.',
+          );
+        }
+
+        applicationRef = matches.first.reference;
+      }
+
+      await db.runTransaction((transaction) async {
+        final currentInterview = await transaction.get(interviewRef);
+        final currentApplication = await transaction.get(applicationRef);
+
+        if (!currentInterview.exists || !currentApplication.exists) {
+          throw Exception('La entrevista o postulación ya no existe.');
+        }
+
+        final interviewData = currentInterview.data()!;
+        final applicationData = currentApplication.data()!;
+
+        if (interviewData['companyId'] != user.uid ||
+            applicationData['companyId'] != user.uid ||
+            applicationData['userId'] != candidateId ||
+            applicationData['role']?.toString() != position) {
+          throw Exception('La entrevista no coincide con la postulación.');
+        }
+
+        final status = applicationData['status']?.toString() ?? '';
+
+        if (status != 'ENTREVISTA' ||
+            interviewData['decisionStatus'] == 'ACEPTADO' ||
+            interviewData['decisionStatus'] == 'RECHAZADO') {
+          throw Exception('Esta postulación ya no admite una decisión.');
+        }
+
+        transaction.update(applicationRef, {
+          'status': decision,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+
+        transaction.update(interviewRef, {
+          'applicationId': applicationRef.id,
+          'decisionStatus': decision,
+          'decisionAt': FieldValue.serverTimestamp(),
+        });
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('POSTULANTE $decision CORRECTAMENTE')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al guardar la decisión: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => savingDecisionId = null);
+    }
   }
 
   Future<void> _showContactInfo(String userId) async {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => const Center(child: CircularProgressIndicator(color: Colors.black)),
+      builder: (ctx) => const Center(
+        child: CircularProgressIndicator(color: Colors.black),
+      ),
     );
 
     try {
-      final doc = await FirebaseFirestore.instance.collection('users').doc(userId).get();
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .get();
+
       if (!mounted) return;
       Navigator.pop(context);
 
@@ -78,16 +234,28 @@ class _CompanyInterviewsScreenState extends State<CompanyInterviewsScreen> {
             side: BorderSide(color: Colors.black, width: 2),
             borderRadius: BorderRadius.zero,
           ),
-          title: const Text('CONTACTO DEL CANDIDATO', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
+          title: const Text(
+            'CONTACTO DEL CANDIDATO',
+            style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
+          ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('NOMBRE: $name', style: const TextStyle(fontWeight: FontWeight.bold)),
+              Text(
+                'NOMBRE: $name',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
               const SizedBox(height: 10),
-              Text('EMAIL: $email', style: const TextStyle(fontWeight: FontWeight.bold)),
+              Text(
+                'EMAIL: $email',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
               const SizedBox(height: 10),
-              Text('TELÉFONO: $phone', style: const TextStyle(fontWeight: FontWeight.bold)),
+              Text(
+                'TELÉFONO: $phone',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
             ],
           ),
           actions: [
@@ -99,7 +267,13 @@ class _CompanyInterviewsScreenState extends State<CompanyInterviewsScreen> {
                 ),
               ),
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('CERRAR', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900)),
+              child: const Text(
+                'CERRAR',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
             ),
           ],
         ),
@@ -110,7 +284,10 @@ class _CompanyInterviewsScreenState extends State<CompanyInterviewsScreen> {
     }
   }
 
-  Future<void> _editInterview(String docId, Map<String, dynamic> data) async {
+  Future<void> _editInterview(
+    String docId,
+    Map<String, dynamic> data,
+  ) async {
     final dateController = TextEditingController(text: data['dateString']);
     final linkController = TextEditingController(text: data['link']);
     final notesController = TextEditingController(text: data['notes']);
@@ -119,13 +296,16 @@ class _CompanyInterviewsScreenState extends State<CompanyInterviewsScreen> {
     await showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
+        builder: (context, setDialogState) => AlertDialog(
           backgroundColor: background,
           shape: const RoundedRectangleBorder(
             side: BorderSide(color: Colors.black, width: 2),
             borderRadius: BorderRadius.zero,
           ),
-          title: const Text('EDITAR ENTREVISTA', style: TextStyle(fontWeight: FontWeight.w900)),
+          title: const Text(
+            'EDITAR ENTREVISTA',
+            style: TextStyle(fontWeight: FontWeight.w900),
+          ),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -150,10 +330,20 @@ class _CompanyInterviewsScreenState extends State<CompanyInterviewsScreen> {
                     ),
                   ),
                   items: const [
-                    DropdownMenuItem(value: 'VIRTUAL', child: Text('VIRTUAL')),
-                    DropdownMenuItem(value: 'PRESENCIAL', child: Text('PRESENCIAL')),
+                    DropdownMenuItem(
+                      value: 'VIRTUAL',
+                      child: Text('VIRTUAL'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'PRESENCIAL',
+                      child: Text('PRESENCIAL'),
+                    ),
                   ],
-                  onChanged: (val) => setState(() => modality = val!),
+                  onChanged: (val) {
+                    if (val != null) {
+                      setDialogState(() => modality = val);
+                    }
+                  },
                 ),
                 const SizedBox(height: 10),
                 TextField(
@@ -183,7 +373,13 @@ class _CompanyInterviewsScreenState extends State<CompanyInterviewsScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('CANCELAR', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+              child: const Text(
+                'CANCELAR',
+                style: TextStyle(
+                  color: Colors.black,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
@@ -193,15 +389,25 @@ class _CompanyInterviewsScreenState extends State<CompanyInterviewsScreen> {
                 ),
               ),
               onPressed: () async {
-                await FirebaseFirestore.instance.collection('interviews').doc(docId).update({
+                await FirebaseFirestore.instance
+                    .collection('interviews')
+                    .doc(docId)
+                    .update({
                   'dateString': dateController.text.trim(),
                   'modality': modality,
                   'link': linkController.text.trim(),
                   'notes': notesController.text.trim(),
                 });
+
                 if (ctx.mounted) Navigator.pop(ctx);
               },
-              child: const Text('GUARDAR', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900)),
+              child: const Text(
+                'GUARDAR',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
             ),
           ],
         ),
@@ -209,27 +415,35 @@ class _CompanyInterviewsScreenState extends State<CompanyInterviewsScreen> {
     );
   }
 
-  Widget _buildInterviewList(List<QueryDocumentSnapshot> docs, bool isHistory) {
+  Widget _buildInterviewList(
+    List<QueryDocumentSnapshot> docs,
+    bool isHistory,
+  ) {
     final filteredDocs = docs.where((doc) {
       final data = doc.data() as Map<String, dynamic>;
-      final status = data['attendanceStatus'] ?? 'PENDIENTE';
-      if (isHistory) {
-        return status == 'ASISTIÓ' || status == 'FALTÓ';
-      } else {
-        return status == 'PENDIENTE';
-      }
+      final decision = data['decisionStatus']?.toString() ?? '';
+      final hasDecision =
+          decision == 'ACEPTADO' || decision == 'RECHAZADO';
+
+      return isHistory ? hasDecision : !hasDecision;
     }).toList();
 
     filteredDocs.sort((a, b) {
-      final dateA = _parseCustomDate((a.data() as Map<String, dynamic>)['dateString'] ?? '');
-      final dateB = _parseCustomDate((b.data() as Map<String, dynamic>)['dateString'] ?? '');
+      final dateA = _parseCustomDate(
+        (a.data() as Map<String, dynamic>)['dateString'] ?? '',
+      );
+      final dateB = _parseCustomDate(
+        (b.data() as Map<String, dynamic>)['dateString'] ?? '',
+      );
       return dateA.compareTo(dateB);
     });
 
     if (filteredDocs.isEmpty) {
       return Center(
         child: Text(
-          isHistory ? 'NO HAY HISTORIAL' : 'NO HAY ENTREVISTAS PENDIENTES',
+          isHistory
+              ? 'NO HAY HISTORIAL'
+              : 'NO HAY ENTREVISTAS PENDIENTES',
           style: const TextStyle(fontWeight: FontWeight.w900),
         ),
       );
@@ -242,7 +456,9 @@ class _CompanyInterviewsScreenState extends State<CompanyInterviewsScreen> {
         final doc = filteredDocs[index];
         final data = doc.data() as Map<String, dynamic>;
         final userId = data['userId']?.toString() ?? '';
-        final currentStatus = data['attendanceStatus'] ?? 'PENDIENTE';
+        final decision = data['decisionStatus']?.toString() ?? '';
+        final hasDecision =
+            decision == 'ACEPTADO' || decision == 'RECHAZADO';
 
         return Container(
           margin: const EdgeInsets.only(bottom: 20),
@@ -257,67 +473,53 @@ class _CompanyInterviewsScreenState extends State<CompanyInterviewsScreen> {
                   Expanded(
                     child: Text(
                       data['position']?.toString().toUpperCase() ?? 'PUESTO',
-                      style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 18,
+                      ),
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
-                      color: currentStatus == 'ASISTIÓ' ? lime : (currentStatus == 'FALTÓ' ? const Color(0xFFFFA6A6) : Colors.white),
-                      border: Border.all(color: Colors.black, width: 1.5),
+                      color: decision == 'ACEPTADO'
+                          ? lime
+                          : decision == 'RECHAZADO'
+                              ? const Color(0xFFFFA6A6)
+                              : Colors.white,
+                      border: Border.all(
+                        color: Colors.black,
+                        width: 1.5,
+                      ),
                     ),
                     child: Text(
-                      currentStatus,
-                      style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 10),
+                      hasDecision ? decision : 'PENDIENTE',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 10,
+                      ),
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 8),
-              const Divider(color: Colors.black, thickness: 1.5),
+              const Divider(
+                color: Colors.black,
+                thickness: 1.5,
+              ),
               const SizedBox(height: 8),
-              Text('FECHA: ${data['dateString']}', style: const TextStyle(fontWeight: FontWeight.bold)),
-              Text('MODALIDAD: ${data['modality']}', style: const TextStyle(fontWeight: FontWeight.bold)),
+              Text(
+                'FECHA: ${data['dateString']}',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              Text(
+                'MODALIDAD: ${data['modality']}',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
               const SizedBox(height: 12),
-              
-              if (!isHistory) ...[
-                const Text('MARCAR ASISTENCIA:', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Expanded(
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: lime,
-                          foregroundColor: Colors.black,
-                          shape: const RoundedRectangleBorder(
-                            side: BorderSide(color: Colors.black, width: 2),
-                            borderRadius: BorderRadius.zero,
-                          ),
-                        ),
-                        onPressed: () => _updateAttendance(doc.id, 'ASISTIÓ'),
-                        child: const Text('ASISTIÓ', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 11)),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFFFA6A6),
-                          foregroundColor: Colors.black,
-                          shape: const RoundedRectangleBorder(
-                            side: BorderSide(color: Colors.black, width: 2),
-                            borderRadius: BorderRadius.zero,
-                          ),
-                        ),
-                        onPressed: () => _updateAttendance(doc.id, 'FALTÓ'),
-                        child: const Text('FALTÓ', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 11)),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-              ],
 
               Row(
                 children: [
@@ -327,12 +529,24 @@ class _CompanyInterviewsScreenState extends State<CompanyInterviewsScreen> {
                         backgroundColor: Colors.white,
                         foregroundColor: Colors.black,
                         shape: const RoundedRectangleBorder(
-                          side: BorderSide(color: Colors.black, width: 2),
+                          side: BorderSide(
+                            color: Colors.black,
+                            width: 2,
+                          ),
                           borderRadius: BorderRadius.zero,
                         ),
                       ),
-                      icon: const Icon(Icons.person_search, size: 16),
-                      label: const Text('CONTACTO', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 11)),
+                      icon: const Icon(
+                        Icons.person_search,
+                        size: 16,
+                      ),
+                      label: const Text(
+                        'CONTACTO',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w900,
+                          fontSize: 11,
+                        ),
+                      ),
                       onPressed: () => _showContactInfo(userId),
                     ),
                   ),
@@ -347,12 +561,21 @@ class _CompanyInterviewsScreenState extends State<CompanyInterviewsScreen> {
                         backgroundColor: Colors.white,
                         foregroundColor: Colors.black,
                         shape: const RoundedRectangleBorder(
-                          side: BorderSide(color: Colors.black, width: 2),
+                          side: BorderSide(
+                            color: Colors.black,
+                            width: 2,
+                          ),
                           borderRadius: BorderRadius.zero,
                         ),
                       ),
                       icon: const Icon(Icons.edit, size: 16),
-                      label: const Text('EDITAR', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 11)),
+                      label: const Text(
+                        'EDITAR',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w900,
+                          fontSize: 11,
+                        ),
+                      ),
                       onPressed: () => _editInterview(doc.id, data),
                     ),
                   ),
@@ -363,17 +586,133 @@ class _CompanyInterviewsScreenState extends State<CompanyInterviewsScreen> {
                         backgroundColor: Colors.white,
                         foregroundColor: Colors.black,
                         shape: const RoundedRectangleBorder(
-                          side: BorderSide(color: Colors.black, width: 2),
+                          side: BorderSide(
+                            color: Colors.black,
+                            width: 2,
+                          ),
                           borderRadius: BorderRadius.zero,
                         ),
                       ),
                       icon: const Icon(Icons.delete, size: 16),
-                      label: const Text('BORRAR', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 11)),
+                      label: const Text(
+                        'BORRAR',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w900,
+                          fontSize: 11,
+                        ),
+                      ),
                       onPressed: () => _deleteInterview(doc.id),
                     ),
                   ),
                 ],
               ),
+
+              const SizedBox(height: 16),
+              const Divider(
+                color: Colors.black,
+                thickness: 1.5,
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'RESULTADO DEL PROCESO',
+                style: TextStyle(
+                  fontWeight: FontWeight.w900,
+                  fontSize: 12,
+                ),
+              ),
+              const SizedBox(height: 10),
+
+              if (hasDecision)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: decision == 'ACEPTADO'
+                        ? lime
+                        : const Color(0xFFFFA6A6),
+                    border: Border.all(
+                      color: Colors.black,
+                      width: 2,
+                    ),
+                  ),
+                  child: Text(
+                    'POSTULANTE $decision',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                )
+              else
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: lime,
+                          foregroundColor: Colors.black,
+                          shape: const RoundedRectangleBorder(
+                            side: BorderSide(
+                              color: Colors.black,
+                              width: 2,
+                            ),
+                            borderRadius: BorderRadius.zero,
+                          ),
+                        ),
+                        onPressed: savingDecisionId != null
+                            ? null
+                            : () => _decideCandidate(
+                                  doc.id,
+                                  'ACEPTADO',
+                                ),
+                        child: const Text(
+                          'ACEPTAR',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w900,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFFFA6A6),
+                          foregroundColor: Colors.black,
+                          shape: const RoundedRectangleBorder(
+                            side: BorderSide(
+                              color: Colors.black,
+                              width: 2,
+                            ),
+                            borderRadius: BorderRadius.zero,
+                          ),
+                        ),
+                        onPressed: savingDecisionId != null
+                            ? null
+                            : () => _decideCandidate(
+                                  doc.id,
+                                  'RECHAZADO',
+                                ),
+                        child: const Text(
+                          'RECHAZAR',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w900,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+
+              if (savingDecisionId == doc.id)
+                const Padding(
+                  padding: EdgeInsets.only(top: 10),
+                  child: LinearProgressIndicator(
+                    color: Colors.black,
+                  ),
+                ),
             ],
           ),
         );
@@ -393,13 +732,22 @@ class _CompanyInterviewsScreenState extends State<CompanyInterviewsScreen> {
           backgroundColor: Colors.black,
           iconTheme: const IconThemeData(color: Colors.white),
           centerTitle: true,
-          title: const Text('MIS ENTREVISTAS', style: TextStyle(fontWeight: FontWeight.w900, color: Colors.white)),
+          title: const Text(
+            'MIS ENTREVISTAS',
+            style: TextStyle(
+              fontWeight: FontWeight.w900,
+              color: Colors.white,
+            ),
+          ),
           bottom: const TabBar(
             indicatorColor: lime,
             indicatorWeight: 4,
             labelColor: lime,
             unselectedLabelColor: Colors.white54,
-            labelStyle: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1),
+            labelStyle: TextStyle(
+              fontWeight: FontWeight.w900,
+              letterSpacing: 1,
+            ),
             tabs: [
               Tab(text: 'PRÓXIMAS'),
               Tab(text: 'HISTORIAL'),
@@ -407,14 +755,32 @@ class _CompanyInterviewsScreenState extends State<CompanyInterviewsScreen> {
           ),
         ),
         body: user == null
-            ? const Center(child: Text('INICIÁ SESIÓN', style: TextStyle(fontWeight: FontWeight.w900)))
+            ? const Center(
+                child: Text(
+                  'INICIÁ SESIÓN',
+                  style: TextStyle(fontWeight: FontWeight.w900),
+                ),
+              )
             : StreamBuilder<QuerySnapshot>(
                 stream: FirebaseFirestore.instance
                     .collection('interviews')
                     .where('companyId', isEqualTo: user.uid)
                     .snapshots(),
                 builder: (context, snapshot) {
-                  if (!snapshot.hasData) return const Center(child: CircularProgressIndicator(color: Colors.black));
+                  if (snapshot.hasError) {
+                    return const Center(
+                      child: Text('ERROR AL CARGAR ENTREVISTAS'),
+                    );
+                  }
+
+                  if (!snapshot.hasData) {
+                    return const Center(
+                      child: CircularProgressIndicator(
+                        color: Colors.black,
+                      ),
+                    );
+                  }
+
                   final docs = snapshot.data!.docs;
 
                   return TabBarView(
