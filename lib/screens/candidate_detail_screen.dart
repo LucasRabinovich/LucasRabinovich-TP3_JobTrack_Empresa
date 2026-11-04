@@ -47,7 +47,7 @@ class _CandidateDetailScreenState extends State<CandidateDetailScreen> {
     }
 
     setState(() => isOpeningCv = true);
-
+      
     try {
       final token = await user.getIdToken(true);
 

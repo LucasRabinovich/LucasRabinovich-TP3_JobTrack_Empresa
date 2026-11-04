@@ -14,8 +14,7 @@ class MyCompanyScreen extends StatelessWidget {
   static const Color background = Color(0xFFF4F4F4);
   static const Color lime = Color(0xFFD4FF00);
 
-  // Navegación entre las pantallas de la App Empresa.
-  // Se conserva el historial para poder volver atrás.
+  
   void _navigateTo(BuildContext context, int index) {
     Widget? destination;
 

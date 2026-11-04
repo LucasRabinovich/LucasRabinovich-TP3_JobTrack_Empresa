@@ -7,7 +7,7 @@ import 'package:job_track/screens/my_company_screen.dart';
 import 'package:job_track/screens/create_offer_screen.dart';
 import 'package:job_track/screens/my_offers_screen.dart';
 import 'package:job_track/screens/candidates_screen.dart';
-import 'package:job_track/screens/company_interviews_screen.dart'; // <-- IMPORTACIÓN AGREGADA
+import 'package:job_track/screens/company_interviews_screen.dart'; 
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -177,7 +177,7 @@ class HomeScreen extends StatelessWidget {
                   onTap: () => _openCandidates(context),
                 ),
                 
-                // <-- NUEVO BOTÓN AGREGADO ACÁ
+              
                 const SizedBox(height: 18),
                 _buildActionButton(
                   title: 'VER ENTREVISTAS',
@@ -191,7 +191,7 @@ class HomeScreen extends StatelessWidget {
                     );
                   },
                 ),
-                // <-- FIN DEL NUEVO BOTÓN
+                
 
                 const SizedBox(height: 30),
                 OutlinedButton.icon(
@@ -397,7 +397,7 @@ class HomeScreen extends StatelessWidget {
                     },
                   ),
                   const SizedBox(height: 12),
-                  // <-- BOTÓN EN EL MENÚ LATERAL
+                
                   _buildDrawerItem(
                     Icons.calendar_month,
                     'ENTREVISTAS',

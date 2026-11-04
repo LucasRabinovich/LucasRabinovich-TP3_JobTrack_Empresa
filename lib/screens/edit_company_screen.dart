@@ -54,7 +54,7 @@ class _EditCompanyScreenState extends State<EditCompanyScreen> {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
-        // Agregamos un timeout de 5 segundos. Si no responde, corta la carga y tira error.
+        
         await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
           'name': _nameController.text.trim(),
           'industry': _industryController.text.trim(),

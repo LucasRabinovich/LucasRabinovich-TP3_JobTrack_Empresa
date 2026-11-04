@@ -34,7 +34,7 @@ class _CreateOfferScreenState extends State<CreateOfferScreen> {
     if (widget.existingOffer != null) {
       _titleController.text = widget.existingOffer!['title'] ?? '';
 
-      // Evitar duplicar el signo $ al editar una oferta existente.
+      
       final existingSalary = widget.existingOffer!['salaryRange']?.toString() ?? '';
       _salaryController.text = existingSalary == 'No especificado'
           ? ''
@@ -94,7 +94,7 @@ class _CreateOfferScreenState extends State<CreateOfferScreen> {
         'seniority': _selectedSeniority,
         'location': _selectedModality == 'Remoto' ? 'No aplica' : location,
 
-        // Guardar el sueldo con el símbolo $.
+        // Guardar el sueldo con el símbolo $
         'salaryRange': salary.isNotEmpty ? '\$ $salary' : 'No especificado',
 
         'description': description,
